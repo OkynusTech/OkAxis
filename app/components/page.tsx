@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Component, ComponentType, TrustZone, Finding, SeverityLevel, Application, ClientProfile } from '@/lib/types';
 import {
@@ -25,7 +25,7 @@ import { Shield, Search, Filter } from 'lucide-react';
 
 type ScopeLevel = 'all' | 'client' | 'application' | 'engagement';
 
-export default function ComponentsPage() {
+function ComponentsContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -364,5 +364,13 @@ export default function ComponentsPage() {
                 }}
             />
         </div>
+    );
+}
+
+export default function ComponentsPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center">Loading Components Registry...</div>}>
+            <ComponentsContent />
+        </Suspense>
     );
 }

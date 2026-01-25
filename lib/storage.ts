@@ -20,6 +20,7 @@ const getDefaultState = (): AppState => ({
 // Load data from localStorage
 export const loadState = (): AppState => {
     try {
+        if (typeof window === 'undefined') return getDefaultState();
         const serialized = localStorage.getItem(STORAGE_KEY);
         if (serialized === null) {
             return getDefaultState();
@@ -44,6 +45,7 @@ export const loadState = (): AppState => {
 // Save data to localStorage
 export const saveState = (state: AppState): void => {
     try {
+        if (typeof window === 'undefined') return;
         const serialized = JSON.stringify(state);
         localStorage.setItem(STORAGE_KEY, serialized);
     } catch (err) {
@@ -606,13 +608,16 @@ export function createComponent(data: Omit<Component, 'id' | 'createdAt' | 'upda
 
     const components = getAllComponents();
     components.push(component);
-    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+    }
 
     return component;
 }
 
 export function getAllComponents(): Component[] {
     try {
+        if (typeof window === 'undefined') return [];
         const data = localStorage.getItem(COMPONENTS_KEY);
         return data ? JSON.parse(data) : [];
     } catch (error) {
@@ -647,7 +652,9 @@ export function updateComponent(id: string, updates: Partial<Component>): Compon
         updatedAt: new Date().toISOString(),
     };
 
-    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
+    }
     return components[index];
 }
 
@@ -657,12 +664,14 @@ export function deleteComponent(id: string): boolean {
 
     if (filtered.length === components.length) return false;
 
-    localStorage.setItem(COMPONENTS_KEY, JSON.stringify(filtered));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(filtered));
 
-    // Also delete associated component-finding links
-    const links = getAllComponentFindings();
-    const filteredLinks = links.filter(l => l.componentId !== id);
-    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filteredLinks));
+        // Also delete associated component-finding links
+        const links = getAllComponentFindings();
+        const filteredLinks = links.filter(l => l.componentId !== id);
+        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filteredLinks));
+    }
 
     return true;
 }
@@ -699,7 +708,9 @@ export function linkComponentToFinding(
         links.push(link);
     }
 
-    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(links));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(links));
+    }
 
     // Update component's findingIds array
     const component = getComponentById(componentId);
@@ -714,6 +725,7 @@ export function linkComponentToFinding(
 
 export function getAllComponentFindings(): ComponentFinding[] {
     try {
+        if (typeof window === 'undefined') return [];
         const data = localStorage.getItem(COMPONENT_FINDINGS_KEY);
         return data ? JSON.parse(data) : [];
     } catch (error) {
@@ -738,7 +750,9 @@ export function unlinkComponentFromFinding(componentId: string, findingId: strin
 
     if (filtered.length === links.length) return false;
 
-    localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filtered));
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filtered));
+    }
 
     // Update component's findingIds array
     const component = getComponentById(componentId);
