@@ -66,6 +66,7 @@ export default function NewEngagement() {
     const [templateId, setTemplateId] = useState<TemplateType>('enterprise');
     const [availableTemplates, setAvailableTemplates] = useState<ReportTemplate[]>([]);
     const [previewTemplate, setPreviewTemplate] = useState<ReportTemplate | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setAvailableTemplates(getAllTemplates());
@@ -83,68 +84,89 @@ export default function NewEngagement() {
     }, [selectedClientId]);
 
     const handleCreateEngagement = () => {
+        if (isSubmitting) return;
+
         let providerId = selectedProviderId === 'new' ? '' : selectedProviderId;
         let clientId = selectedClientId === 'new' ? '' : selectedClientId;
         let applicationId = selectedApplicationId === 'new' ? '' : selectedApplicationId;
 
-        // Create service provider if new
-        if (!providerId && newProviderName) {
-            const provider = createServiceProvider({
-                ...DEFAULT_SERVICE_PROVIDER,
-                companyName: newProviderName,
-                contactEmail: newProviderEmail || 'contact@example.com',
-            });
-            providerId = provider.id;
-        }
-
-        // Create client if new
-        if (!clientId && newClientName) {
-            const client = createClient({
-                companyName: newClientName,
-                industry: newClientIndustry || 'Technology',
-                riskTolerance: 'Medium',
-                preferredReportDepth: 'Standard',
-            });
-            clientId = client.id;
-        }
-
-        // Create application if new
-        if (!applicationId && newApplicationName && clientId) {
-            const app = createApplication({
-                clientId: clientId,
-                name: newApplicationName,
-                description: newApplicationDescription,
-            });
-            applicationId = app.id;
-        }
-
-        if (!providerId || !clientId || !applicationId) {
-            alert('Please select or create a service provider, client, and application');
+        if (!providerId && !newProviderName) {
+            alert('Please select or enter a service provider');
             return;
         }
 
-        const engagement = createEngagement({
-            serviceProviderId: providerId,
-            clientId: clientId,
-            applicationId: applicationId, // NEW
-            engineerIds: selectedEngineerIds, // NEW
-            metadata: {
-                engagementName,
-                assessmentType,
-                startDate,
-                endDate,
-                testingMethodology: methodology,
-                scope: scope.split('\n').filter((s) => s.trim()),
-                outOfScope: outOfScope.split('\n').filter((s) => s.trim()),
-                assumptions: assumptions.split('\n').filter((s) => s.trim()),
-                limitations: limitations.split('\n').filter((s) => s.trim()),
-            },
-            findings: [],
-            templateId,
-            status: 'Draft',
-        });
+        if (!clientId && !newClientName) {
+            alert('Please select or enter a client');
+            return;
+        }
 
-        router.push(`/engagement/${engagement.id}`);
+        setIsSubmitting(true);
+
+        try {
+            // Create service provider if new
+            if (!providerId && newProviderName) {
+                const provider = createServiceProvider({
+                    ...DEFAULT_SERVICE_PROVIDER,
+                    companyName: newProviderName,
+                    contactEmail: newProviderEmail || 'contact@example.com',
+                });
+                providerId = provider.id;
+            }
+
+            // Create client if new
+            if (!clientId && newClientName) {
+                const client = createClient({
+                    companyName: newClientName,
+                    industry: newClientIndustry || 'Technology',
+                    riskTolerance: 'Medium',
+                    preferredReportDepth: 'Standard',
+                });
+                clientId = client.id;
+            }
+
+            // Create application if new
+            if (!applicationId && newApplicationName && clientId) {
+                const app = createApplication({
+                    clientId: clientId,
+                    name: newApplicationName,
+                    description: newApplicationDescription,
+                });
+                applicationId = app.id;
+            }
+
+            if (!providerId || !clientId || !applicationId) {
+                alert('Please select or create a service provider, client, and application');
+                setIsSubmitting(false);
+                return;
+            }
+
+            const engagement = createEngagement({
+                serviceProviderId: providerId,
+                clientId: clientId,
+                applicationId: applicationId, // NEW
+                engineerIds: selectedEngineerIds, // NEW
+                metadata: {
+                    engagementName,
+                    assessmentType,
+                    startDate,
+                    endDate,
+                    testingMethodology: methodology,
+                    scope: scope.split('\n').filter((s) => s.trim()),
+                    outOfScope: outOfScope.split('\n').filter((s) => s.trim()),
+                    assumptions: assumptions.split('\n').filter((s) => s.trim()),
+                    limitations: limitations.split('\n').filter((s) => s.trim()),
+                },
+                findings: [],
+                templateId,
+                status: 'Draft',
+            });
+
+            router.push(`/engagement/${engagement.id}`);
+        } catch (error) {
+            console.error('Error creating engagement:', error);
+            setIsSubmitting(false);
+            alert('Failed to create engagement. Please try again.');
+        }
     };
 
     return (
@@ -549,7 +571,9 @@ export default function NewEngagement() {
                                 <Button variant="outline" onClick={() => setStep(4)}>
                                     Previous
                                 </Button>
-                                <Button onClick={handleCreateEngagement}>Create Engagement</Button>
+                                <Button onClick={handleCreateEngagement} disabled={isSubmitting}>
+                                    {isSubmitting ? 'Creating...' : 'Create Engagement'}
+                                </Button>
                             </div>
                         </div>
                     )}

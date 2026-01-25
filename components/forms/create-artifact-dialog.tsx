@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { createArtifact } from '@/lib/storage';
 import { getAllClients, getAllApplications, getAllEngagements } from '@/lib/storage';
@@ -103,23 +103,33 @@ export function CreateArtifactDialog({
 
                     <div>
                         <Label>Type *</Label>
-                        <Select value={type} onChange={(e) => setType(e.target.value as ArtifactType)} className="mt-2">
-                            <option value="scope-document">Scope Document</option>
-                            <option value="architecture-document">Architecture Document</option>
-                            <option value="previous-report">Previous Report</option>
-                            <option value="walkthrough-video">Walkthrough Video</option>
-                            <option value="walkthrough-transcript">Walkthrough Transcript</option>
-                            <option value="custom-document">Custom Document</option>
+                        <Select value={type} onValueChange={(v) => setType(v as ArtifactType)}>
+                            <SelectTrigger className="mt-2">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="scope-document">Scope Document</SelectItem>
+                                <SelectItem value="architecture-document">Architecture Document</SelectItem>
+                                <SelectItem value="previous-report">Previous Report</SelectItem>
+                                <SelectItem value="walkthrough-video">Walkthrough Video</SelectItem>
+                                <SelectItem value="walkthrough-transcript">Walkthrough Transcript</SelectItem>
+                                <SelectItem value="custom-document">Custom Document</SelectItem>
+                            </SelectContent>
                         </Select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <Label>Scope Level *</Label>
-                            <Select value={scope} onChange={(e) => setScope(e.target.value as ArtifactScope)} className="mt-2">
-                                <option value="client">Client-Level</option>
-                                <option value="application">Application-Level</option>
-                                <option value="engagement">Engagement-Level</option>
+                            <Select value={scope} onValueChange={(v) => setScope(v as ArtifactScope)}>
+                                <SelectTrigger className="mt-2">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="client">Client-Level</SelectItem>
+                                    <SelectItem value="application">Application-Level</SelectItem>
+                                    <SelectItem value="engagement">Engagement-Level</SelectItem>
+                                </SelectContent>
                             </Select>
                         </div>
 
@@ -127,13 +137,17 @@ export function CreateArtifactDialog({
                             {scope === 'client' && (
                                 <>
                                     <Label>Select Client *</Label>
-                                    <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)} className="mt-2">
-                                        <option value="">Choose a client</option>
-                                        {clients.map((client) => (
-                                            <option key={client.id} value={client.id}>
-                                                {client.companyName}
-                                            </option>
-                                        ))}
+                                    <Select value={scopeId} onValueChange={setScopeId}>
+                                        <SelectTrigger className="mt-2">
+                                            <SelectValue placeholder="Choose a client" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {clients.map((client) => (
+                                                <SelectItem key={client.id} value={client.id}>
+                                                    {client.companyName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
                                     </Select>
                                 </>
                             )}
@@ -141,13 +155,17 @@ export function CreateArtifactDialog({
                             {scope === 'application' && (
                                 <>
                                     <Label>Select Application *</Label>
-                                    <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)} className="mt-2">
-                                        <option value="">Choose an application</option>
-                                        {applications.map((app) => (
-                                            <option key={app.id} value={app.id}>
-                                                {app.name} ({clients.find(c => c.id === app.clientId)?.companyName || 'Unknown Client'})
-                                            </option>
-                                        ))}
+                                    <Select value={scopeId} onValueChange={setScopeId}>
+                                        <SelectTrigger className="mt-2">
+                                            <SelectValue placeholder="Choose an application" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {applications.map((app) => (
+                                                <SelectItem key={app.id} value={app.id}>
+                                                    {app.name} ({clients.find(c => c.id === app.clientId)?.companyName || 'Unknown Client'})
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
                                     </Select>
                                 </>
                             )}
@@ -155,13 +173,17 @@ export function CreateArtifactDialog({
                             {scope === 'engagement' && (
                                 <>
                                     <Label>Select Engagement *</Label>
-                                    <Select value={scopeId} onChange={(e) => setScopeId(e.target.value)} className="mt-2">
-                                        <option value="">Choose an engagement</option>
-                                        {engagements.map((eng) => (
-                                            <option key={eng.id} value={eng.id}>
-                                                {eng.metadata.engagementName}
-                                            </option>
-                                        ))}
+                                    <Select value={scopeId} onValueChange={setScopeId}>
+                                        <SelectTrigger className="mt-2">
+                                            <SelectValue placeholder="Choose an engagement" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {engagements.map((eng) => (
+                                                <SelectItem key={eng.id} value={eng.id}>
+                                                    {eng.metadata.engagementName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
                                     </Select>
                                 </>
                             )}
