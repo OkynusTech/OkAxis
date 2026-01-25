@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { Plus, FileText, Settings, Download, LogOut, User, Building2, Users, Folder, Trash2, TrendingUp } from 'lucide-react';
+import { Plus, FileText, Settings, Download, LogOut, User, Building2, Users, Folder, Trash2, TrendingUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { getAllEngagements, getAllServiceProviders, getAllClients, exportData, getAllApplications, getAllEngineers, getAllArtifacts } from '@/lib/storage';
+import { getAllEngagements, getAllServiceProviders, getAllClients, exportData, getAllApplications, getAllEngineers, getAllArtifacts, getAllComponents } from '@/lib/storage';
 import { formatDate, calculateFindingStats } from '@/lib/report-utils';
 import { SeverityBadge } from '@/components/ui/severity-badge';
 import { Engagement, ServiceProviderProfile, ClientProfile } from '@/lib/types';
@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [applications, setApplications] = useState<any[]>([]);
   const [engineers, setEngineers] = useState<any[]>([]);
   const [artifacts, setArtifacts] = useState<any[]>([]);
+  const [components, setComponents] = useState<any[]>([]);
 
   const loadData = () => {
     setEngagements(getAllEngagements());
@@ -27,6 +28,7 @@ export default function Dashboard() {
     setApplications(getAllApplications());
     setEngineers(getAllEngineers());
     setArtifacts(getAllArtifacts());
+    setComponents(getAllComponents());
   };
 
   useEffect(() => {
@@ -61,38 +63,17 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
+        {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold">OkAxis</h1>
-            <p className="mt-1 text-muted-foreground font-medium">by OkynusTech</p>
-            {session?.user && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>Welcome, {session.user.name || session.user.email}</span>
-              </div>
-            )}
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Overview of your security engagements and findings.</p>
           </div>
           <div className="flex gap-3 items-start">
-            <Button variant="ghost" onClick={() => signOut({ callbackUrl: '/login' })}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign Out
-            </Button>
             <Button variant="outline" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Export Data
             </Button>
-            <Link href="/settings">
-              <Button variant="outline">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </Button>
-            </Link>
-            <Link href="/templates">
-              <Button variant="outline">
-                <FileText className="mr-2 h-4 w-4" />
-                Templates
-              </Button>
-            </Link>
             <Link href="/engagement/new">
               <Button>
                 <Plus className="mr-2 h-4 w-4" />

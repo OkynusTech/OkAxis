@@ -304,13 +304,43 @@
   /* Page break utilities for report sections */
   .page-break-before {
     page-break-before: always;
+    break-before: page;
   }
 
   .page-break-after {
     page-break-after: always;
+    break-after: page;
   }
 
   .page-break-inside-avoid {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* Screen visualization for page breaks */
+@media screen {
+  .page-break-before {
+    border-top: 1px dashed var(--border);
+    margin-top: 4rem;
+    padding-top: 3rem;
+    position: relative;
+  }
+
+  .page-break-before::before {
+    content: "PAGE BREAK (PRINT)";
+    position: absolute;
+    top: -0.75rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 0 1rem;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: oklch(0.505 0.027 265.755);
+    /* muted-foreground */
+    letter-spacing: 0.15em;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
   }
 }
