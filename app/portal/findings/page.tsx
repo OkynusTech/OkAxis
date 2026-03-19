@@ -33,6 +33,8 @@ import { MessageSquare, Bot, Sparkles, Loader2, History, CheckSquare, RefreshCw 
 import { RemediationHistoryPanel } from '@/components/remediation/remediation-history-panel';
 import { Separator } from '@/components/ui/separator';
 import { RequestRetestDialog } from '@/components/forms/request-retest-dialog';
+import { AutoRetestDialog } from '@/components/forms/auto-retest-dialog';
+import { Zap } from 'lucide-react';
 
 export default function PortalFindings() {
     const [user, setUser] = useState<ClientUser | null>(null);
@@ -50,6 +52,10 @@ export default function PortalFindings() {
     // Retest Request Dialog State
     const [retestDialogOpen, setRetestDialogOpen] = useState(false);
     const [selectedFinding, setSelectedFinding] = useState<(Finding & { engagementId: string }) | null>(null);
+
+    // Auto-Retest Dialog State
+    const [autoRetestOpen, setAutoRetestOpen] = useState(false);
+    const [autoRetestFinding, setAutoRetestFinding] = useState<(Finding & { engagementId: string }) | null>(null);
 
     // Derived state for engagement filter options
     const uniqueEngagements = Array.from(new Set(findings.map(f => f.engagementId)))
@@ -268,6 +274,18 @@ export default function PortalFindings() {
                                                         <RefreshCw className="mr-2 h-3.5 w-3.5" />
                                                         Request Re-test
                                                     </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        className="bg-violet-600 hover:bg-violet-700 text-white"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setAutoRetestFinding(finding);
+                                                            setAutoRetestOpen(true);
+                                                        }}
+                                                    >
+                                                        <Zap className="mr-2 h-3.5 w-3.5" />
+                                                        Auto-Verify Fix
+                                                    </Button>
                                                     <Button size="sm" variant="outline" className="border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800">
                                                         <ExternalLink className="mr-2 h-3.5 w-3.5" />
                                                         Share Artifact
@@ -363,6 +381,18 @@ export default function PortalFindings() {
                     />
                 )
             }
+            {/* Auto-Retest Dialog */}
+            {autoRetestFinding && (
+                <AutoRetestDialog
+                    open={autoRetestOpen}
+                    onOpenChange={(open) => {
+                        setAutoRetestOpen(open);
+                        if (!open) setAutoRetestFinding(null);
+                    }}
+                    finding={autoRetestFinding}
+                    engagementId={autoRetestFinding.engagementId}
+                />
+            )}
         </div >
     );
 }

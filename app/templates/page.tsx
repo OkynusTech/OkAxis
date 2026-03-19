@@ -39,6 +39,10 @@ export default function TemplatesPage() {
             name: `${template.name} (Copy)`,
         });
         setTemplates(getAllTemplates());
+        if (newTemplate && 'severity' in newTemplate) {
+            alert(`Could not clone template:\n\n${newTemplate.errors.join('\n')}`);
+            return;
+        }
         router.push(`/templates/${newTemplate.id}`);
     };
 

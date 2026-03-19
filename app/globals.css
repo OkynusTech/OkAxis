@@ -46,6 +46,46 @@
   --font-sans: var(--font-inter);
   --font-mono: var(--font-ibm-plex-mono);
 
+  /* Enterprise spacing scale - 4px base */
+  --spacing-1: 0.25rem;
+  /* 4px */
+  --spacing-2: 0.5rem;
+  /* 8px */
+  --spacing-3: 0.75rem;
+  /* 12px */
+  --spacing-4: 1rem;
+  /* 16px */
+  --spacing-5: 1.25rem;
+  /* 20px */
+  --spacing-6: 1.5rem;
+  /* 24px */
+  --spacing-8: 2rem;
+  /* 32px */
+  --spacing-10: 2.5rem;
+  /* 40px */
+  --spacing-12: 3rem;
+  /* 48px */
+  --spacing-16: 4rem;
+  /* 64px */
+
+  /* Typography scale */
+  --font-size-xs: 0.75rem;
+  /* 12px */
+  --font-size-sm: 0.875rem;
+  /* 14px */
+  --font-size-base: 1rem;
+  /* 16px */
+  --font-size-lg: 1.125rem;
+  /* 18px */
+  --font-size-xl: 1.25rem;
+  /* 20px */
+  --font-size-2xl: 1.5rem;
+  /* 24px */
+  --font-size-3xl: 1.875rem;
+  /* 30px */
+  --font-size-4xl: 2.25rem;
+  /* 36px */
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -55,10 +95,11 @@
   --spacing-container: 1280px;
   --spacing-container-lg: 1536px;
 
-  --shadow-md: 0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow);
-  --shadow-xl: 0 20px 25px -5px var(--shadow), 0 8px 10px -6px var(--shadow);
-  --shadow-2xl: 0 25px 50px -12px var(--shadow);
-  --shadow-mockup: -12px 16px 48px var(--shadow-strong);
+  /* Subtle shadows for enterprise aesthetic */
+  --shadow-sm: 0 1px 2px 0 var(--shadow);
+  --shadow-md: 0 2px 4px -1px var(--shadow);
+  --shadow-lg: 0 4px 6px -1px var(--shadow), 0 2px 4px -2px var(--shadow);
+  --shadow-xl: 0 10px 15px -3px var(--shadow), 0 4px 6px -4px var(--shadow);
 
   --line-width: 1px;
 
@@ -143,11 +184,11 @@
   /* Light grey */
   --secondary-foreground: oklch(0.21 0.006 285.885);
 
-  /* Muted - Better contrast */
+  /* Muted - Improved contrast for WCAG AA */
   --muted: oklch(0.96 0.004 264.542);
   /* Light blue-grey */
-  --muted-foreground: oklch(0.505 0.027 265.755);
-  /* Darker for readability */
+  --muted-foreground: oklch(0.45 0.015 265.755);
+  /* Darker for better readability - meets WCAG AA */
 
   /* Accent - Light Blue */
   --accent: oklch(0.9 0.032 254.604);
@@ -220,10 +261,10 @@
   --secondary: oklch(0.35 0.012 265.137);
   --secondary-foreground: oklch(0.98 0.002 264.542);
 
-  /* Muted - Better contrast in dark */
+  /* Muted - Improved contrast in dark mode */
   --muted: oklch(0.35 0.012 265.137);
-  --muted-foreground: oklch(0.7 0.020 265.755);
-  /* Lighter for readability */
+  --muted-foreground: oklch(0.65 0.015 265.755);
+  /* Balanced for dark mode readability */
 
   --accent: oklch(0.35 0.012 265.137);
   --accent-foreground: oklch(0.98 0.002 264.542);
@@ -333,7 +374,7 @@
     top: -0.75rem;
     left: 50%;
     transform: translateX(-50%);
-    background: white;
+    background: var(--background);
     padding: 0 1rem;
     font-size: 0.65rem;
     font-weight: 600;

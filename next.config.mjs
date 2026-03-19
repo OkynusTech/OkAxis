@@ -12,6 +12,7 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    transpilePackages: ['polotno', 'react-konva', 'konva', 'mobx-react-lite'],
 };
 
 export default nextConfig;

@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { Plus, FileText, Settings, Download, LogOut, User, Building2, Users, Folder, Trash2, TrendingUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { getAllEngagements, getAllServiceProviders, getAllClients, exportData, getAllApplications, getAllEngineers, getAllArtifacts, getAllComponents } from '@/lib/storage';
+import { getAllEngagements, getAllServiceProviders, getAllClients, exportData, getAllApplications, getAllEngineers, getAllArtifacts, getAllComponents, deleteEngagement } from '@/lib/storage';
 import { formatDate, calculateFindingStats } from '@/lib/report-utils';
 import { SeverityBadge } from '@/components/ui/severity-badge';
 import { Engagement, ServiceProviderProfile, ClientProfile } from '@/lib/types';
@@ -52,7 +52,6 @@ export default function Dashboard() {
     e.preventDefault();
     e.stopPropagation();
     if (confirm(`Are you sure you want to delete engagement "${name}"? This will delete all findings and evidence.`)) {
-      const { deleteEngagement } = require('@/lib/storage');
       if (deleteEngagement(id)) {
         loadData();
       }
@@ -63,11 +62,10 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Overview of your security engagements and findings.</p>
+            <h1 className="text-4xl font-bold tracking-tight">Dashboard</h1>
+            <p className="mt-2 text-muted-foreground">Overview of your security engagements and findings.</p>
           </div>
           <div className="flex gap-3 items-start">
             <Button variant="outline" onClick={handleExport}>
@@ -83,10 +81,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Quick Navigation - NEW FEATURES */}
+        {/* Quick Navigation */}
         <div className="mb-8 grid gap-4 grid-cols-2 lg:grid-cols-5">
           <Link href="/analytics">
-            <Card className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-purple-600 hover:bg-purple-600/5">
+            <Card className="p-6 cursor-pointer transition-all hover:shadow-md">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-purple-600 p-3">
                   <TrendingUp className="h-6 w-6 text-white" />
@@ -100,7 +98,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/clients">
-            <Card className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-orange-600 hover:bg-orange-600/5">
+            <Card className="p-6 cursor-pointer transition-all hover:shadow-md">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-orange-600 p-3">
                   <Building2 className="h-6 w-6 text-white" />
@@ -116,7 +114,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/applications">
-            <Card className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-blue-600 hover:bg-blue-600/5">
+            <Card className="p-6 cursor-pointer transition-all hover:shadow-md">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-blue-600 p-3">
                   <Folder className="h-6 w-6 text-white" />
@@ -132,7 +130,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/engineers">
-            <Card className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-purple-600 hover:bg-purple-600/5">
+            <Card className="p-6 cursor-pointer transition-all hover:shadow-md">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-purple-600 p-3">
                   <Users className="h-6 w-6 text-white" />
@@ -148,7 +146,7 @@ export default function Dashboard() {
           </Link>
 
           <Link href="/artifacts">
-            <Card className="p-6 cursor-pointer transition-all hover:shadow-lg hover:border-green-600 hover:bg-green-600/5">
+            <Card className="p-6 cursor-pointer transition-all hover:shadow-md">
               <div className="flex items-center gap-4">
                 <div className="rounded-full bg-green-600 p-3">
                   <FileText className="h-6 w-6 text-white" />
@@ -187,7 +185,7 @@ export default function Dashboard() {
 
         {/* Engagements List */}
         <div>
-          <h2 className="mb-4 text-2xl font-bold">Recent Engagements</h2>
+          <h2 className="mb-6 text-2xl font-bold">Recent Engagements</h2>
           {engagements.length === 0 ? (
             <Card className="p-12 text-center">
               <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -255,12 +253,12 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-600/10"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => handleDeleteEngagement(e, engagement.id, engagement.metadata.engagementName)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            <span className="inline-flex items-center rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white">
+                            <span className="inline-flex items-center rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
                               {engagement.status}
                             </span>
                           </div>

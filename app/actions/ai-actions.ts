@@ -191,6 +191,125 @@ export async function generateClientSummaryAction(clientId: string, clientName: 
 }
 
 /**
+ * Agentic Template Wizard — Multi-turn chat to plan and generate a complete ReportTemplate JSON.
+ *
+ * The AI acts as a "Template Architect". It asks clarifying questions (audience, tone, sections,
+ * branding) and when it has enough context, it emits a special JSON payload:
+ *   ___TEMPLATE_JSON_START___ { ...json } ___TEMPLATE_JSON_END___
+ *
+ * The client detects that pattern, parses the JSON, and uses it to populate the template form.
+ */
+export async function chatTemplateWizardAction(
+    messages: { role: 'user' | 'assistant'; content: string }[]
+): Promise<{ reply: string; done: boolean; templateJson?: object }> {
+    if (!groq) {
+        return {
+            reply: "⚠️ The AI wizard requires a GROQ_API_KEY to be configured on the server. Please add it to your `.env.local` file.",
+            done: false,
+        };
+    }
+
+    const SYSTEM_PROMPT = `You are an expert Penetration Testing Report Template Architect for a platform called OkAxis. 
+Your job is to help security engineers design the perfect report template via a friendly, professional conversation.
+
+CONVERSATION RULES:
+- Ask 1-2 focused questions per message. Never more.
+- Guide the user to provide: report audience, technical depth, required sections, color scheme (hex codes), typography style, logo placement, and any custom sections.
+- After 3-6 exchanges where you have enough to build a great template, generate the final template JSON.
+- Be concise and professional. Use emojis sparingly for warmth.
+
+REQUIRED INFORMATION TO COLLECT before generating:
+1. Report type/purpose (e.g., Web App Pentest, Network Audit, Compliance)
+2. Target audience (e.g., C-Suite, Engineering Team, Mixed)
+3. Technical verbosity (High/Medium/Low)
+4. Which standard sections to include (Executive Summary, Findings, Scope, Methodology, Remediation Roadmap, etc.)
+5. Any custom sections (e.g., "API Attack Surface Analysis")
+6. Visual branding: Primary color hex, secondary color hex, accent color
+7. Typography mood (e.g., modern sans-serif → Inter, traditional → Georgia, technical → Roboto Mono)
+8. Whether to include CVSS scores, CWE IDs, OWASP categories
+
+WHEN YOU HAVE ENOUGH CONTEXT, generate the template JSON like this:
+
+I've gathered everything I need. Here's your generated template:
+
+___TEMPLATE_JSON_START___
+{
+  "name": "...",
+  "description": "...",
+  "strictnessLevel": "standard",
+  "technicalVerbosity": "High",
+  "businessLanguageLevel": "Medium",
+  "includeCVSS": true,
+  "includeCWE": true,
+  "includeOWASP": true,
+  "branding": {
+    "primaryColor": "#1e3a5f",
+    "secondaryColor": "#0ea5e9",
+    "accentColor": "#f59e0b",
+    "colorScheme": ["#1e3a5f", "#0ea5e9", "#f59e0b", "#16a34a", "#dc2626"],
+    "primaryFont": "Inter",
+    "secondaryFont": "Roboto",
+    "logoPlacement": "cover-and-header",
+    "useEnhancedCover": true,
+    "showChartsInExecutiveSummary": true,
+    "showRiskMatrix": true
+  },
+  "visualStyle": {
+    "fontFamily": "inter",
+    "spacingDensity": "comfortable",
+    "pageSize": "A4",
+    "showPageNumbers": true,
+    "showHeaderFooter": true,
+    "headingScale": "comfortable"
+  },
+  "sections": [
+    { "id": "coverPage", "title": "Cover Page", "type": "standard", "isVisible": true, "isLocked": true, "componentName": "CoverPage" },
+    { "id": "executiveSummary", "title": "Executive Summary", "type": "standard", "isVisible": true, "isLocked": true, "componentName": "ExecutiveSummary" },
+    { "id": "scope", "title": "Scope & Methodology", "type": "standard", "isVisible": true, "componentName": "ScopeAndMethodology" },
+    { "id": "findings", "title": "Findings", "type": "standard", "isVisible": true, "isLocked": true, "componentName": "FindingsList" },
+    { "id": "remediationRoadmap", "title": "Remediation Roadmap", "type": "standard", "isVisible": true, "componentName": "RemediationRoadmap" },
+    { "id": "conclusion", "title": "Conclusion", "type": "standard", "isVisible": true, "componentName": "Conclusion" }
+  ]
+}
+___TEMPLATE_JSON_END___
+
+IMPORTANT: Adapt all JSON fields based on what the user told you. Never include placeholder text in the actual JSON values.
+The sections array MUST include at minimum "coverPage", "executiveSummary", and "findings".
+Only custom sections should have type: "custom" and no "componentName".`;
+
+    try {
+        const chatCompletion = await groq.chat.completions.create({
+            messages: [
+                { role: 'system', content: SYSTEM_PROMPT },
+                ...messages,
+            ],
+            model: 'llama-3.3-70b-versatile',
+            temperature: 0.5,
+            max_tokens: 2000,
+        });
+
+        const reply = chatCompletion.choices[0]?.message?.content || '';
+
+        // Detect if the AI has embedded a final JSON payload
+        const jsonMatch = reply.match(/___TEMPLATE_JSON_START___([\s\S]*?)___TEMPLATE_JSON_END___/);
+        if (jsonMatch) {
+            try {
+                const templateJson = JSON.parse(jsonMatch[1].trim());
+                return { reply, done: true, templateJson };
+            } catch {
+                // JSON parse failed — continue conversation to let user know
+                return { reply: reply + '\n\n⚠️ There was a parsing error in the generated JSON. Let me try again — could you re-confirm your color preferences?', done: false };
+            }
+        }
+
+        return { reply, done: false };
+    } catch (error) {
+        console.error('[chatTemplateWizardAction] Groq error:', error);
+        return { reply: '⚠️ The AI service encountered an error. Please try again in a moment.', done: false };
+    }
+}
+
+/**
  * Explain Finding (Contextual Help)
  */
 export async function explainFindingAction(finding: any, queryType: 'business' | 'fix' | 'custom', customQuery?: string): Promise<string> {

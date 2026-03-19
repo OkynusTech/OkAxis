@@ -8,9 +8,12 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getAllClients, deleteClient, getAllEngagements, getAllApplications } from '@/lib/storage';
 import { ClientUserManagementDialog } from '@/components/forms/client-user-management-dialog';
+import { ClientProfile } from '@/lib/types';
 
 export default function ClientsPage() {
     const [clients, setClients] = useState<ClientProfile[]>([]);
+    const [engagements, setEngagements] = useState<any[]>([]);
+    const [allApplications, setAllApplications] = useState<any[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredClients, setFilteredClients] = useState<ClientProfile[]>([]);
     const [managingClient, setManagingClient] = useState<ClientProfile | null>(null);
@@ -29,6 +32,8 @@ export default function ClientsPage() {
 
     const loadData = () => {
         setClients(getAllClients());
+        setEngagements(getAllEngagements());
+        setAllApplications(getAllApplications());
     };
 
     const handleDeleteClient = (id: string, name: string) => {
@@ -59,7 +64,7 @@ export default function ClientsPage() {
                             </Button>
                         </Link>
                         <h1 className="text-4xl font-bold">Client Management</h1>
-                        <p className="mt-1 text-muted-foreground">
+                        <p className="mt-2 text-muted-foreground">
                             Manage organizations and their assessment history
                         </p>
                     </div>
@@ -91,8 +96,8 @@ export default function ClientsPage() {
                         </Card>
                     ) : (
                         filteredClients.map((client) => {
-                            const clientEngagements = getAllEngagements().filter(e => e.clientId === client.id);
-                            const clientApplications = getAllApplications().filter(a => a.clientId === client.id);
+                            const clientEngagements = engagements.filter(e => e.clientId === client.id);
+                            const clientApplications = allApplications.filter(a => a.clientId === client.id);
 
                             return (
                                 <Card key={client.id} className="p-6 transition-all hover:shadow-md">

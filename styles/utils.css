@@ -91,3 +91,11 @@
 @utility line-dashed {
   @apply border-dashed;
 }
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

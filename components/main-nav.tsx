@@ -15,7 +15,7 @@ import {
     TrendingUp,
     LogOut,
     User,
-    RefreshCw
+    RefreshCw,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import {
@@ -92,24 +92,24 @@ export function MainNav() {
         <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
             <div className="container flex h-16 items-center px-4">
                 <Link href="/" className="mr-8 flex items-center gap-2 font-bold text-xl">
-                    <span className="bg-gradient-to-tr from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    <span className="text-foreground">
                         OkAxis
                     </span>
                 </Link>
 
-                <div className="flex items-center space-x-1 lg:space-x-2 overflow-x-auto no-scrollbar mask-fade-right">
+                <div className="flex items-center gap-2 lg:gap-3 overflow-x-auto no-scrollbar fade-right">
                     {routes.map((route) => (
                         <Link
                             key={route.href}
                             href={route.href}
                             className={cn(
-                                "flex items-center text-sm font-medium transition-colors hover:text-primary px-3 py-2 rounded-md",
+                                "flex items-center text-sm font-medium transition-colors hover:text-primary px-3 py-2 rounded-md gap-2",
                                 route.active
-                                    ? "bg-accent/50 text-accent-foreground"
+                                    ? "bg-accent text-accent-foreground"
                                     : "text-muted-foreground"
                             )}
                         >
-                            <route.icon className="mr-2 h-4 w-4" />
+                            <route.icon className="h-4 w-4" />
                             {route.label}
                         </Link>
                     ))}

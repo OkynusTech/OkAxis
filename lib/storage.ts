@@ -1,4 +1,4 @@
-import { AppState, ClientProfile, Engagement, ServiceProviderProfile, ReportTemplate, ValidationResult, Application, Engineer, Artifact, ArtifactScope, ArtifactType, Component, ComponentFinding, ExtractedComponent, ComponentType, TrustZone, ClientUser, RemediationEvent, RemediationOutcome, RetestRequest, RetestStatus, FindingStatus } from './types';
+import { AppState, ClientProfile, Engagement, ServiceProviderProfile, ReportTemplate, ValidationResult, Application, Engineer, Artifact, ArtifactScope, ArtifactType, Component, ComponentFinding, ExtractedComponent, ComponentType, TrustZone, ClientUser, RemediationEvent, RemediationOutcome, RetestRequest, RetestStatus, FindingStatus, AutoRetestResult } from './types';
 import { REPORT_TEMPLATES as SYSTEM_TEMPLATES } from './constants';
 import { validateTemplateCompleteness } from './template-validation';
 
@@ -15,6 +15,9 @@ const getDefaultState = (): AppState => ({
     templates: [],
     clientUsers: [],
     retestRequests: [], // New: Retest queue
+    autoRetestResults: [], // New: Auto-retest engine history
+    components: [],
+    componentFindings: [],
 });
 
 // Load data from localStorage
@@ -496,7 +499,7 @@ export const createArtifact = (artifact: Omit<Artifact, 'id' | 'uploadedAt' | 'u
         id: `art_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         uploadedAt: now,
         updatedAt: now,
-        visibility: 'internal',
+        visibility: 'internal-only',
     };
 
     const state = loadState();
@@ -1278,6 +1281,38 @@ export const getRetestRequestsByEngineer = (engineerId: string): RetestRequest[]
     const state = loadState();
     if (!state.retestRequests) return [];
     return state.retestRequests.filter(r => r.assignedTo === engineerId);
+};
+
+// ============================================================================
+// Auto-Retest Result Management
+// ============================================================================
+
+export const saveAutoRetestResult = (result: AutoRetestResult): void => {
+    const state = loadState();
+    if (!state.autoRetestResults) state.autoRetestResults = [];
+    state.autoRetestResults.push(result);
+    saveState(state);
+};
+
+export const getAllAutoRetestResults = (): AutoRetestResult[] => {
+    const state = loadState();
+    const results = state.autoRetestResults || [];
+    // Return newest first
+    return [...results].sort((a, b) => new Date(b.ranAt).getTime() - new Date(a.ranAt).getTime());
+};
+
+export const getAutoRetestResult = (id: string): AutoRetestResult | null => {
+    const state = loadState();
+    if (!state.autoRetestResults) return null;
+    return state.autoRetestResults.find(r => r.id === id) || null;
+};
+
+export const getAutoRetestResultsByFinding = (findingId: string): AutoRetestResult[] => {
+    const state = loadState();
+    if (!state.autoRetestResults) return [];
+    return state.autoRetestResults
+        .filter(r => r.findingId === findingId)
+        .sort((a, b) => new Date(b.ranAt).getTime() - new Date(a.ranAt).getTime());
 };
 
 // Clear all data
