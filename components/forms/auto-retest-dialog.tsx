@@ -86,6 +86,11 @@ const STATUS_MAP: Record<EngineStatus, { label: string; color: string; icon: any
 const VULN_TYPES = [
     { value: 'IDOR', label: 'IDOR (Insecure Direct Object Reference)' },
     { value: 'STORED_XSS', label: 'Stored XSS (Cross-Site Scripting)' },
+    { value: 'REFLECTED_XSS', label: 'Reflected XSS (Cross-Site Scripting)' },
+    { value: 'AUTH_BYPASS', label: 'Authentication/Authorization Bypass' },
+    { value: 'CSRF', label: 'CSRF (Cross-Site Request Forgery)' },
+    { value: 'OPEN_REDIRECT', label: 'Open Redirect' },
+    { value: 'SQLI', label: 'SQL Injection' },
 ];
 
 const ACTION_ICONS: Record<string, string> = {
@@ -110,11 +115,21 @@ export function AutoRetestDialog({
     const [steps, setSteps] = useState(finding.stepsToReproduce || finding.description || '');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [authType, setAuthType] = useState<string>('form');
+    const [bearerToken, setBearerToken] = useState('');
+    const [cookieJson, setCookieJson] = useState('');
+    const [oauthTokenUrl, setOauthTokenUrl] = useState('');
+    const [oauthClientId, setOauthClientId] = useState('');
 
     // Execution state
     const [isRunning, setIsRunning] = useState(false);
     const [result, setResult] = useState<EngineResult | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // SSE streaming state
+    const [currentTurn, setCurrentTurn] = useState(0);
+    const [maxTurns, setMaxTurns] = useState(15);
+    const [liveActions, setLiveActions] = useState<Array<{ turn: number; action: string; reasoning: string; result?: string }>>([]);
 
     // UI state
     const [showLogs, setShowLogs] = useState(false);
@@ -128,59 +143,142 @@ export function AutoRetestDialog({
     const prevRuns = getAutoRetestResultsByFinding(finding.id);
 
     const handleRun = async () => {
-        if (!targetUrl || !vulnType || !steps || !username || !password) {
-            setError('All fields are required.');
+        if (!targetUrl || !vulnType || !steps) {
+            setError('Target URL, vulnerability type, and steps are required.');
+            return;
+        }
+        if (authType === 'form' && (!username || !password)) {
+            setError('Username and password are required for form login.');
+            return;
+        }
+        if (authType === 'bearer_token' && !bearerToken) {
+            setError('Bearer token is required.');
+            return;
+        }
+        if (authType === 'cookie' && !cookieJson) {
+            setError('Cookie JSON is required.');
+            return;
+        }
+        if (authType === 'oauth_password' && (!oauthTokenUrl || !username || !password)) {
+            setError('Token URL, username, and password are required for OAuth.');
             return;
         }
 
         setIsRunning(true);
         setResult(null);
         setError(null);
+        setCurrentTurn(0);
+        setLiveActions([]);
+
+        // Build credentials based on auth type
+        let creds: Record<string, any> = { auth_type: authType };
+        if (authType === 'form') {
+            creds = { ...creds, username, password };
+        } else if (authType === 'bearer_token') {
+            creds = { ...creds, token: bearerToken };
+        } else if (authType === 'cookie') {
+            try {
+                creds = { ...creds, cookies: JSON.parse(cookieJson) };
+            } catch {
+                setError('Invalid cookie JSON format.');
+                setIsRunning(false);
+                return;
+            }
+        } else if (authType === 'oauth_password') {
+            creds = { ...creds, token_url: oauthTokenUrl, client_id: oauthClientId, username, password };
+        }
+
+        const requestBody = JSON.stringify({
+            retest_id: `auto_${finding.id}_${Date.now()}`,
+            vulnerability_type: vulnType,
+            target_url: targetUrl,
+            steps_to_reproduce: steps,
+            credentials: creds,
+        });
 
         try {
-            const res = await fetch(RETEST_ENGINE_URL, {
+            // Try SSE streaming first, fall back to regular fetch
+            const streamRes = await fetch('/api/retest/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    retest_id: `auto_${finding.id}_${Date.now()}`,
-                    vulnerability_type: vulnType,
-                    target_url: targetUrl,
-                    steps_to_reproduce: steps,
-                    credentials: { username, password },
-                }),
+                body: requestBody,
+                signal: AbortSignal.timeout(300_000),
             });
 
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(`Engine returned ${res.status}: ${text}`);
+            if (streamRes.ok && streamRes.body) {
+                // SSE streaming mode
+                const reader = streamRes.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let completeData: EngineResult | null = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            // Next data line will correspond to this event type
+                        } else if (line.startsWith('data: ')) {
+                            try {
+                                const eventData = JSON.parse(line.slice(6));
+                                // Determine event type from the data shape
+                                if (eventData.turn !== undefined && eventData.max_turns !== undefined && !eventData.action) {
+                                    setCurrentTurn(eventData.turn);
+                                    setMaxTurns(eventData.max_turns);
+                                } else if (eventData.action && eventData.reasoning !== undefined) {
+                                    setLiveActions(prev => [...prev, {
+                                        turn: eventData.turn,
+                                        action: eventData.action,
+                                        reasoning: eventData.reasoning,
+                                    }]);
+                                } else if (eventData.result && eventData.turn) {
+                                    setLiveActions(prev => prev.map(a =>
+                                        a.turn === eventData.turn && !a.result
+                                            ? { ...a, result: eventData.result }
+                                            : a
+                                    ));
+                                } else if (eventData.retest_id && eventData.status) {
+                                    completeData = eventData as EngineResult;
+                                } else if (eventData.message) {
+                                    // Engine emitted an error event
+                                    throw new Error(`Engine Error: ${eventData.message}`);
+                                }
+                            } catch {
+                                // Skip unparseable lines
+                            }
+                        }
+                    }
+                }
+
+                if (completeData) {
+                    setResult(completeData);
+                    _persistResult(completeData);
+                } else {
+                    throw new Error('Stream ended without a complete result');
+                }
+            } else {
+                // Fallback: regular non-streaming request
+                const res = await fetch('/api/retest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: requestBody,
+                    signal: AbortSignal.timeout(300_000),
+                });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    throw new Error(`Engine returned ${res.status}: ${text}`);
+                }
+
+                const data: EngineResult = await res.json();
+                setResult(data);
+                _persistResult(data);
             }
-
-            const data: EngineResult = await res.json();
-            setResult(data);
-
-            // Persist to history
-            const det = data.evidence?.details;
-            saveAutoRetestResult({
-                id: data.retest_id || `rr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                findingId: finding.id,
-                findingTitle: finding.title,
-                engagementId,
-                targetUrl,
-                vulnerabilityType: vulnType,
-                stepsToReproduce: steps,
-                status: data.status,
-                confidence: det?.confidence ?? 0,
-                reason: det?.reason ?? '',
-                reasoningChain: det?.reasoning_chain ?? '',
-                turnsUsed: det?.turns_used ?? 0,
-                maxTurns: det?.max_turns ?? 15,
-                agentTurns: det?.agent_turns ?? [],
-                screenshots: (data.evidence?.screenshots ?? []).map((s: any) => ({ name: s.name || '', data: s.data || '' })),
-                logEntries: data.evidence?.logs ?? [],
-                networkRequests: data.evidence?.network_data ?? [],
-                error: data.error,
-                ranAt: new Date().toISOString(),
-            });
         } catch (err: any) {
             if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
                 setError('Cannot connect to retest engine. Is it running? (Check RETEST_ENGINE_URL)');
@@ -190,6 +288,31 @@ export function AutoRetestDialog({
         } finally {
             setIsRunning(false);
         }
+    };
+
+    const _persistResult = (data: EngineResult) => {
+        const det = data.evidence?.details;
+        saveAutoRetestResult({
+            id: data.retest_id || `rr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            findingId: finding.id,
+            findingTitle: finding.title,
+            engagementId,
+            targetUrl,
+            vulnerabilityType: vulnType,
+            stepsToReproduce: steps,
+            status: data.status,
+            confidence: det?.confidence ?? 0,
+            reason: det?.reason ?? '',
+            reasoningChain: det?.reasoning_chain ?? '',
+            turnsUsed: det?.turns_used ?? 0,
+            maxTurns: det?.max_turns ?? 15,
+            agentTurns: det?.agent_turns ?? [],
+            screenshots: (data.evidence?.screenshots ?? []).map((s: any) => ({ name: s.name || '', data: s.data || '' })),
+            logEntries: data.evidence?.logs ?? [],
+            networkRequests: data.evidence?.network_data ?? [],
+            error: data.error,
+            ranAt: new Date().toISOString(),
+        });
     };
 
     const handleApply = () => {
@@ -210,6 +333,7 @@ export function AutoRetestDialog({
 
     const handleClose = (isOpen: boolean) => {
         if (!isOpen) {
+            setIsRunning(false);
             setResult(null);
             setError(null);
             setShowLogs(false);
@@ -291,25 +415,92 @@ export function AutoRetestDialog({
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label>Username *</Label>
-                                <Input
-                                    placeholder="test_user"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                />
+                        <div className="grid gap-2">
+                            <Label>Authentication Method</Label>
+                            <select
+                                value={authType}
+                                onChange={(e) => setAuthType(e.target.value)}
+                                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="form">Form Login (username/password)</option>
+                                <option value="bearer_token">Bearer Token</option>
+                                <option value="cookie">Cookie Injection</option>
+                                <option value="oauth_password">OAuth2 Password Grant</option>
+                            </select>
+                        </div>
+
+                        {/* Form login fields */}
+                        {(authType === 'form' || authType === 'oauth_password') && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label>Username *</Label>
+                                    <Input
+                                        placeholder="test_user"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Password *</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                    />
+                                </div>
                             </div>
+                        )}
+
+                        {/* Bearer token field */}
+                        {authType === 'bearer_token' && (
                             <div className="grid gap-2">
-                                <Label>Password *</Label>
+                                <Label>Bearer Token *</Label>
                                 <Input
                                     type="password"
-                                    placeholder="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="eyJhbGciOiJIUzI1NiIs..."
+                                    value={bearerToken}
+                                    onChange={(e) => setBearerToken(e.target.value)}
                                 />
+                                <p className="text-xs text-muted-foreground">The token will be sent as Authorization: Bearer &lt;token&gt;</p>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Cookie injection field */}
+                        {authType === 'cookie' && (
+                            <div className="grid gap-2">
+                                <Label>Cookies (JSON) *</Label>
+                                <Textarea
+                                    placeholder={'[\n  {"name": "session", "value": "abc123", "domain": ".example.com"}\n]'}
+                                    value={cookieJson}
+                                    onChange={(e) => setCookieJson(e.target.value)}
+                                    rows={3}
+                                />
+                                <p className="text-xs text-muted-foreground">JSON array of cookie objects with name, value, and domain fields.</p>
+                            </div>
+                        )}
+
+                        {/* OAuth fields */}
+                        {authType === 'oauth_password' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label>Token URL *</Label>
+                                    <Input
+                                        placeholder="https://auth.example.com/oauth/token"
+                                        value={oauthTokenUrl}
+                                        onChange={(e) => setOauthTokenUrl(e.target.value)}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Client ID</Label>
+                                    <Input
+                                        placeholder="client_id (optional)"
+                                        value={oauthClientId}
+                                        onChange={(e) => setOauthClientId(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Agentic info banner */}
                         <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded border border-violet-200 dark:border-violet-800 text-sm flex items-start gap-2">
@@ -387,38 +578,78 @@ export function AutoRetestDialog({
                     </div>
                 )}
 
-                {/* Loading */}
+                {/* Loading / Live Progress */}
                 {isRunning && (
-                    <div className="py-8 text-center">
-                        <div className="relative mx-auto w-16 h-16 mb-4">
-                            <Loader2 className="h-16 w-16 animate-spin text-violet-600/30" />
-                            <Brain className="h-8 w-8 text-violet-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    <div className="py-4 space-y-4">
+                        <div className="text-center">
+                            <div className="relative mx-auto w-16 h-16 mb-3">
+                                <Loader2 className="h-16 w-16 animate-spin text-violet-600/30" />
+                                <Brain className="h-8 w-8 text-violet-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                            </div>
+                            <p className="text-sm font-medium">Agent is testing...</p>
                         </div>
-                        <p className="text-sm font-medium">Agent is testing...</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            Observing page state, reasoning about actions, verifying vulnerability.
-                        </p>
-                        <div className="flex items-center justify-center gap-2 mt-3 text-xs text-muted-foreground">
-                            <span className="inline-flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-                                Navigate
-                            </span>
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="inline-flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.3s' }} />
-                                Observe
-                            </span>
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="inline-flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.6s' }} />
-                                Reason
-                            </span>
-                            <ArrowRight className="h-3 w-3" />
-                            <span className="inline-flex items-center gap-1">
-                                <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.9s' }} />
-                                Act
-                            </span>
-                        </div>
+
+                        {/* Progress bar */}
+                        {currentTurn > 0 && (
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Turn {currentTurn} / {maxTurns}</span>
+                                    <span>{Math.round((currentTurn / maxTurns) * 100)}%</span>
+                                </div>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-violet-600 rounded-full transition-all duration-500"
+                                        style={{ width: `${(currentTurn / maxTurns) * 100}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Live action trace */}
+                        {liveActions.length > 0 && (
+                            <div className="max-h-48 overflow-y-auto rounded border border-border bg-muted/30 p-2 space-y-1.5">
+                                {liveActions.map((a, i) => (
+                                    <div key={i} className="text-xs flex items-start gap-2">
+                                        <span className="inline-flex items-center gap-1 shrink-0 font-mono text-violet-600">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                                            T{a.turn}
+                                        </span>
+                                        <span className="font-medium shrink-0">{ACTION_ICONS[a.action] || '?'} {a.action}</span>
+                                        <span className="text-muted-foreground truncate">{a.reasoning}</span>
+                                        {a.result && (
+                                            <span className={`shrink-0 ${a.result.startsWith('SUCCESS') ? 'text-green-600' : 'text-red-500'}`}>
+                                                {a.result.startsWith('SUCCESS') ? '✓' : '✗'}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Animated flow */}
+                        {liveActions.length === 0 && (
+                            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
+                                    Navigate
+                                </span>
+                                <ArrowRight className="h-3 w-3" />
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.3s' }} />
+                                    Observe
+                                </span>
+                                <ArrowRight className="h-3 w-3" />
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.6s' }} />
+                                    Reason
+                                </span>
+                                <ArrowRight className="h-3 w-3" />
+                                <span className="inline-flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: '0.9s' }} />
+                                    Act
+                                </span>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -700,11 +931,26 @@ export function AutoRetestDialog({
 
 function guessVulnType(title: string, category?: string): string {
     const text = `${title} ${category || ''}`.toLowerCase();
-    if (text.includes('idor') || text.includes('insecure direct') || text.includes('authorization') || text.includes('access control')) {
+    if (text.includes('idor') || text.includes('insecure direct') || text.includes('access control')) {
         return 'IDOR';
     }
-    if (text.includes('xss') || text.includes('cross-site') || text.includes('script')) {
+    if (text.includes('reflected xss') || text.includes('reflected cross-site')) {
+        return 'REFLECTED_XSS';
+    }
+    if (text.includes('stored xss') || text.includes('persistent xss') || text.includes('xss') || text.includes('cross-site scripting') || text.includes('script injection')) {
         return 'STORED_XSS';
+    }
+    if (text.includes('auth bypass') || text.includes('authentication bypass') || text.includes('broken auth') || text.includes('privilege escalation') || text.includes('authorization bypass')) {
+        return 'AUTH_BYPASS';
+    }
+    if (text.includes('csrf') || text.includes('cross-site request') || text.includes('request forgery')) {
+        return 'CSRF';
+    }
+    if (text.includes('open redirect') || text.includes('url redirect') || text.includes('unvalidated redirect')) {
+        return 'OPEN_REDIRECT';
+    }
+    if (text.includes('sql injection') || text.includes('sqli') || text.includes('sql inject')) {
+        return 'SQLI';
     }
     return 'IDOR';
 }
