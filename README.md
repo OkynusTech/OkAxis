@@ -87,6 +87,7 @@ All documentation lives in the [`/docs`](./docs) folder:
 
 | Document | Description |
 |---|---|
+| [retest-guide.md](./docs/retest-guide.md) | **Start here** — step-by-step guide to using the Auto-Retest Engine with screenshots |
 | [retest-engine.md](./docs/retest-engine.md) | Retest engine setup, API reference, action types, SSE events, troubleshooting |
 | [deployment.md](./docs/deployment.md) | Deploying to Vercel (Next.js) and Railway (Python engine Docker) |
 | [ai-layer.md](./docs/ai-layer.md) | AI provider setup (Groq + Gemini), Transformers.js local embeddings, feature reference |
