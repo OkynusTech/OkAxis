@@ -110,7 +110,7 @@ async def browser_session(
                 "url":           resp.url,
                 "method":        resp.request.method,
                 "status":        resp.status,
-                "response_body": body[:4096],   # Cap to avoid huge payloads
+                "response_body": body[:8192],   # Cap to avoid huge payloads
                 "headers":       dict(resp.headers),
             })
 

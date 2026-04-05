@@ -34,12 +34,16 @@ export default function TemplatesPage() {
 
     const handleClone = (template: ReportTemplate) => {
         const { id, ...rest } = template;
-        const newTemplate = createTemplate({
+        const result = createTemplate({
             ...rest,
             name: `${template.name} (Copy)`,
         });
-        setTemplates(getAllTemplates());
-        router.push(`/templates/${newTemplate.id}`);
+        if ('id' in result) {
+            setTemplates(getAllTemplates());
+            router.push(`/templates/${result.id}`);
+        } else {
+            alert('Failed to clone template: ' + (result.errors?.join(', ') || 'Validation failed'));
+        }
     };
 
     return (

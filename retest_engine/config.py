@@ -11,9 +11,18 @@ from dotenv import load_dotenv
 _env_path = Path(__file__).parent.parent / ".env.local"
 load_dotenv(_env_path)
 
-# ── Groq ──────────────────────────────────────────────────────────────────────
+# ── Groq (primary LLM) ───────────────────────────────────────────────────────
 GROQ_API_KEY: str = os.environ.get("GROQ_API_KEY", "")
 GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+# ── OpenAI (fallback LLM) ───────────────────────────────────────────────────
+OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+FALLBACK_LLM_PROVIDER: str = os.environ.get("FALLBACK_LLM_PROVIDER", "openai")
+
+# ── LLM Resilience ──────────────────────────────────────────────────────────
+LLM_RETRY_ATTEMPTS: int = int(os.environ.get("LLM_RETRY_ATTEMPTS", "3"))
+LLM_RETRY_DELAY_S: float = float(os.environ.get("LLM_RETRY_DELAY_S", "1.0"))
 
 # ── Playwright ────────────────────────────────────────────────────────────────
 HEADLESS: bool = os.environ.get("HEADLESS", "true").lower() == "true"

@@ -446,7 +446,7 @@ export interface BrandAsset {
   createdAt: string;
 }
 
-// Enhanced branding configuration with structured, restricted options
+// Enhanced branding configuration — full brand theming
 export interface BrandingConfig {
   // Logos
   clientLogoUrl?: string;
@@ -466,7 +466,17 @@ export interface BrandingConfig {
 
   // Cover / Background imagery
   coverBackgroundImageUrl?: string;  // Full-bleed cover page image (data URL or URL)
+  coverGraphicUrl?: string;          // Decorative graphic/illustration on cover (data URL or URL)
+  coverGraphicPosition?: 'top' | 'center' | 'bottom' | 'background'; // Where the graphic sits
+  coverTextColor?: string;           // Override text color on cover (for dark backgrounds)
   backgroundAssets?: BrandAsset[];   // Brand pattern/image library
+
+  // Report-wide brand color application
+  headingColor?: string;             // Color for all section headings (defaults to primaryColor)
+  borderColor?: string;              // Color for borders/dividers (defaults to secondaryColor)
+  tableHeaderBg?: string;            // Table header background (defaults to primaryColor)
+  tableHeaderText?: string;          // Table header text color (defaults to white)
+  linkColor?: string;                // Link/accent highlight color (defaults to accentColor)
 
   // Text customization
   headerText?: string;
@@ -637,6 +647,13 @@ export interface AutoRetestResult {
   ranBy?: string;
 }
 
+// AI Provider preference
+export type AIProviderType = 'groq' | 'gemini';
+
+export interface AIPreferences {
+  provider: AIProviderType;
+}
+
 export interface AppState {
   serviceProviders: ServiceProviderProfile[];
   clients: ClientProfile[];
@@ -651,6 +668,7 @@ export interface AppState {
   components: Component[]; // NEW
   componentFindings: ComponentFinding[]; // NEW
   currentEngagementId?: string;
+  aiPreferences?: AIPreferences;
 }
 
 // ============================================================================

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Upload, Download, Trash2, Pencil } from 'lucide-react';
+import { ArrowLeft, Upload, Download, Trash2, Pencil, Bot, Sparkles, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,15 +16,43 @@ import {
     exportData,
     importData,
     clearAllData,
+    getAIPreferences,
+    setAIPreferences,
 } from '@/lib/storage';
+import { checkAvailableProvidersAction } from '@/app/actions/ai-actions';
 import { DEFAULT_SERVICE_PROVIDER } from '@/lib/constants';
+import { cn } from '@/lib/utils';
+
+type AIProviderType = 'groq' | 'gemini';
+
+interface ProviderStatus {
+    provider: AIProviderType;
+    available: boolean;
+    displayName: string;
+}
 
 export default function Settings() {
     const [providers, setProviders] = useState<any[]>([]);
+    const [aiProvider, setAiProvider] = useState<AIProviderType>('groq');
+    const [providerStatuses, setProviderStatuses] = useState<ProviderStatus[]>([]);
+    const [aiStatusLoading, setAiStatusLoading] = useState(true);
 
     useEffect(() => {
         setProviders(getAllServiceProviders());
+        // Load AI preferences
+        const prefs = getAIPreferences();
+        setAiProvider(prefs.provider);
+        // Check which providers are available on the server
+        checkAvailableProvidersAction().then(statuses => {
+            setProviderStatuses(statuses);
+            setAiStatusLoading(false);
+        }).catch(() => setAiStatusLoading(false));
     }, []);
+
+    const handleAiProviderChange = (provider: AIProviderType) => {
+        setAiProvider(provider);
+        setAIPreferences({ provider });
+    };
     const [showNewProvider, setShowNewProvider] = useState(false);
     const [companyName, setCompanyName] = useState('');
     const [contactEmail, setContactEmail] = useState('');
@@ -170,6 +198,119 @@ export default function Settings() {
                     <p className="mt-4 text-sm text-muted-foreground">
                         Export your data for backup or import previously exported data. All data is stored locally
                         in your browser.
+                    </p>
+                </Card>
+
+                {/* AI Provider Selection */}
+                <Card className="mb-8 p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                            <Sparkles className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-bold">AI Provider</h2>
+                            <p className="text-sm text-muted-foreground">Choose which AI backend powers the Template Wizard and AI features</p>
+                        </div>
+                    </div>
+
+                    {aiStatusLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            Checking available providers...
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Groq */}
+                            {(() => {
+                                const groqStatus = providerStatuses.find(p => p.provider === 'groq');
+                                const isAvailable = groqStatus?.available ?? false;
+                                const isSelected = aiProvider === 'groq';
+                                return (
+                                    <button
+                                        onClick={() => isAvailable && handleAiProviderChange('groq')}
+                                        disabled={!isAvailable}
+                                        className={cn(
+                                            'relative text-left p-5 rounded-xl border-2 transition-all',
+                                            isSelected && isAvailable
+                                                ? 'border-primary bg-primary/5'
+                                                : isAvailable
+                                                    ? 'border-border hover:border-primary/50 hover:bg-muted/30'
+                                                    : 'border-border opacity-50 cursor-not-allowed'
+                                        )}
+                                    >
+                                        {isSelected && isAvailable && (
+                                            <div className="absolute top-3 right-3 h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                                                <Check className="h-3.5 w-3.5 text-primary-foreground" />
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Bot className="h-5 w-5 text-orange-500" />
+                                            <p className="font-semibold">Groq</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-3">Llama 3.3 70B — Ultra-fast inference via Groq hardware</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">Fast</span>
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">Open Source Model</span>
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">30 RPM</span>
+                                        </div>
+                                        {!isAvailable && (
+                                            <div className="flex items-center gap-1.5 mt-3 text-xs text-amber-500">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                GROQ_API_KEY not configured in .env.local
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })()}
+
+                            {/* Gemini */}
+                            {(() => {
+                                const geminiStatus = providerStatuses.find(p => p.provider === 'gemini');
+                                const isAvailable = geminiStatus?.available ?? false;
+                                const isSelected = aiProvider === 'gemini';
+                                return (
+                                    <button
+                                        onClick={() => isAvailable && handleAiProviderChange('gemini')}
+                                        disabled={!isAvailable}
+                                        className={cn(
+                                            'relative text-left p-5 rounded-xl border-2 transition-all',
+                                            isSelected && isAvailable
+                                                ? 'border-primary bg-primary/5'
+                                                : isAvailable
+                                                    ? 'border-border hover:border-primary/50 hover:bg-muted/30'
+                                                    : 'border-border opacity-50 cursor-not-allowed'
+                                        )}
+                                    >
+                                        {isSelected && isAvailable && (
+                                            <div className="absolute top-3 right-3 h-6 w-6 rounded-full bg-primary flex items-center justify-center">
+                                                <Check className="h-3.5 w-3.5 text-primary-foreground" />
+                                            </div>
+                                        )}
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Sparkles className="h-5 w-5 text-blue-500" />
+                                            <p className="font-semibold">Google Gemini</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-3">Gemini 2.5 Flash — Google's fast multimodal model with 250K TPM</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">Larger Context</span>
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">Multimodal</span>
+                                            <span className="text-[10px] border rounded-full px-2 py-0.5">5 RPM / 250K TPM</span>
+                                        </div>
+                                        {!isAvailable && (
+                                            <div className="flex items-center gap-1.5 mt-3 text-xs text-amber-500">
+                                                <AlertCircle className="h-3.5 w-3.5" />
+                                                GEMINI_API_KEY not configured in .env.local
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    <p className="mt-4 text-xs text-muted-foreground">
+                        The selected provider is used for the AI Template Wizard. Other AI features (text refinement, summaries) currently use Groq.
+                        Add your API keys to <code className="px-1 py-0.5 rounded bg-muted text-[11px]">.env.local</code> and restart the server to enable providers.
                     </p>
                 </Card>
 

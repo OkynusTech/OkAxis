@@ -32,8 +32,8 @@ export function MainNav() {
     const pathname = usePathname();
     const { data: session } = useSession();
 
-    // specific handling for login page or public pages if any
-    if (pathname === '/login' || pathname === '/register') {
+    // Hide nav on auth pages and client portal (portal has its own header)
+    if (pathname === '/login' || pathname === '/register' || pathname === '/client-login' || pathname.startsWith('/portal')) {
         return null;
     }
 

@@ -52,13 +52,15 @@ export function MarkdownRenderer({
                 urlTransform={(value: string) => value}
                 components={{
                     img: ({ node, ...props }) => {
-                        if (!props.src) return null;
+                        const src = typeof props.src === 'string' ? props.src : '';
+                        if (!src) return null;
 
                         return (
                             <img
                                 {...props}
+                                src={src}
                                 className="max-w-full rounded-md border shadow-sm my-4"
-                                onError={() => handleImageError(props.src || '')}
+                                onError={() => handleImageError(src)}
                                 // Ensure data URIs are preserved in print
                                 style={{
                                     maxWidth: '100%',

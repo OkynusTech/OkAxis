@@ -3,12 +3,13 @@ import { USERS, resolveUser } from '../../health/route';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const current = resolveUser(req);
   if (!current) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const userId = parseInt(params.id, 10);
+  const { id } = await params;
+  const userId = parseInt(id, 10);
   const target = USERS[userId];
   if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 

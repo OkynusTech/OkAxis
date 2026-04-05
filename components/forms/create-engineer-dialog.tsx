@@ -27,7 +27,7 @@ export function CreateEngineerDialog({ open, onOpenChange, onSuccess }: CreateEn
 
         createEngineer({
             name: name.trim(),
-            email: email.trim() || undefined,
+            email: email.trim() || '',
             role: role.trim() || 'Security Engineer',
             exposure: {
                 vulnerabilityClasses: [],

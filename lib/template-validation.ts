@@ -19,10 +19,14 @@ import { BRAND_COLOR_PALETTE, APPROVED_FONTS } from './constants';
  * - none → allow save silently
  */
 
-// Validate that a color ID exists in the approved palette
+// Validate that a color value is valid (palette ID or hex)
 export const validateColorId = (colorId: string | undefined): boolean => {
     if (!colorId) return true; // Optional field
 
+    // Allow arbitrary hex colors (e.g. '#1e3a5f', '#abc')
+    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(colorId)) return true;
+
+    // Also allow palette IDs for backwards compat
     const paletteValues = Object.values(BRAND_COLOR_PALETTE);
     return paletteValues.some(color => color.id === colorId);
 };
@@ -54,13 +58,16 @@ export const validateBrandingConfig = (branding?: BrandingConfig): { errors: str
         errors.push(`Accent color must be from approved palette. Got: ${branding.accentColor}`);
     }
 
-    // Validate logo URLs (basic check)
-    if (branding.clientLogoUrl && !branding.clientLogoUrl.match(/\.(png|jpg|jpeg|svg)$/i)) {
-        warnings.push('Client logo should be PNG, JPG, or SVG format');
+    // Validate logo URLs (allow data URLs, remote URLs with image extensions)
+    const isValidImageUrl = (url: string) =>
+        url.startsWith('data:image/') || /\.(png|jpg|jpeg|svg|webp|gif)(\?.*)?$/i.test(url) || /^https?:\/\/.+/i.test(url);
+
+    if (branding.clientLogoUrl && !isValidImageUrl(branding.clientLogoUrl)) {
+        warnings.push('Client logo should be a valid image URL or data URL');
     }
 
-    if (branding.providerLogoUrl && !branding.providerLogoUrl.match(/\.(png|jpg|jpeg|svg)$/i)) {
-        warnings.push('Provider logo should be PNG, JPG, or SVG format');
+    if (branding.providerLogoUrl && !isValidImageUrl(branding.providerLogoUrl)) {
+        warnings.push('Provider logo should be a valid image URL or data URL');
     }
 
     // Validate text lengths to prevent layout breaking
@@ -217,13 +224,9 @@ export const validateStrictnessConstraints = (template: ReportTemplate): { error
     const warnings: string[] = [];
 
     if (template.strictnessLevel === 'standard') {
-        // Standard mode should not have advanced configurations
+        // Standard mode allows visual style but not findings presentation overrides
         if (template.findingsPresentation) {
-            errors.push('Findings presentation settings are only available in flexible mode');
-        }
-
-        if (template.visualStyle) {
-            errors.push('Visual style settings are only available in flexible mode');
+            warnings.push('Findings presentation settings work best in flexible mode');
         }
 
         if (template.contentControl?.customBlocksAllowed) {

@@ -4,14 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:target": "py retest_engine/target_app.py",
     "dev:engine": "py -m flask --app retest_engine.server run --port 5555",
-    "dev:all": "concurrently -n Next.js,TargetApp,RetestEngine -c cyan,yellow,green \"npm run dev\" \"npm run dev:target\" \"npm run dev:engine\"",
+    "dev:all": "concurrently -n Next.js,RetestEngine -c cyan,green \"npm run dev\" \"npm run dev:engine\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-avatar": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.1",

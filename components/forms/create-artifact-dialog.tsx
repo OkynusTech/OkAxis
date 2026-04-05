@@ -68,6 +68,7 @@ export function CreateArtifactDialog({
             name: name.trim(),
             description: description.trim() || undefined,
             content: content.trim(),
+            visibility: 'internal-only',
             metadata: {},
         });
 

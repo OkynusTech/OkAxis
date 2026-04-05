@@ -83,8 +83,7 @@ export const authOptions: NextAuthOptions = {
             }
         }),
     ],
-    // Explicit secret required for App Router stability in dev
-    secret: (process.env.NEXTAUTH_SECRET || "fallback_secret_for_local_dev").trim(),
+    secret: process.env.NEXTAUTH_SECRET?.trim() || (process.env.NODE_ENV === 'development' ? 'dev-only-secret-not-for-production' : undefined),
     session: {
         strategy: "jwt",
     },

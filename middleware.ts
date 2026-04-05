@@ -20,6 +20,13 @@ export const config = {
         "/engagement/:path*",
         "/templates/:path*",
         "/settings/:path*",
-        "/reports/:path*"
+        "/reports/:path*",
+        "/analytics/:path*",
+        "/clients/:path*",
+        "/applications/:path*",
+        "/engineers/:path*",
+        "/artifacts/:path*",
+        "/components/:path*",
+        "/retests/:path*",
     ]
 }

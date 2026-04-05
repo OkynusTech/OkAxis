@@ -972,6 +972,18 @@ export const getAllTemplates = (): ReportTemplate[] => {
     return [...systemTemplates, ...userTemplates];
 };
 
+// AI Preferences
+export const getAIPreferences = (): { provider: 'groq' | 'gemini' } => {
+    const state = loadState();
+    return state.aiPreferences || { provider: 'groq' };
+};
+
+export const setAIPreferences = (prefs: { provider: 'groq' | 'gemini' }): void => {
+    const state = loadState();
+    state.aiPreferences = prefs;
+    saveState(state);
+};
+
 // Export/Import functionality
 export const exportData = (): string => {
     const state = loadState();
@@ -1002,7 +1014,7 @@ export const importData = (jsonData: string): boolean => {
 export const createRemediationEvent = (
     findingId: string,
     engagementId: string,
-    event: Omit<RemediationEvent, 'id' | 'createdAt' | 'updatedAt'>
+    event: Omit<RemediationEvent, 'id' | 'findingId' | 'engagementId' | 'createdAt' | 'updatedAt'>
 ): RemediationEvent => {
     const state = loadState();
     const now = new Date().toISOString();

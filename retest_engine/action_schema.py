@@ -32,10 +32,19 @@ Supported actions:
     "summary": "One-line human-readable explanation",
     "reasoning": "Detailed chain of thought about evidence gathered"}
 
+8. extract_form_tokens: Extract all hidden input fields from a form (useful for CSRF testing)
+   {"action": "extract_form_tokens", "selector": "form", "reasoning": "why"}
+   Returns a list of hidden input names and values found in the form.
+
+9. check_redirect: Navigate to a URL and report the final URL after all redirects
+   {"action": "check_redirect", "url": "http://...", "reasoning": "why"}
+   Returns the final URL the browser ended up at. Useful for testing open redirect vulnerabilities.
+
 IMPORTANT: "not_fixed" means the vulnerability STILL EXISTS. "verified" means the fix WORKS and the vuln is gone.
 """
 
 VALID_ACTIONS = {
     "navigate", "fill", "click", "api_request",
     "evaluate_js", "wait", "verdict",
+    "extract_form_tokens", "check_redirect",
 }

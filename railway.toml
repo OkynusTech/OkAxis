@@ -1,0 +1,52 @@
+# railway.toml — Next.js Web Application (Service 1)
+#
+# ── Railway Project Layout ──────────────────────────────────────────────────
+#
+#  Service 1 "oknexus-app"   → this file (Next.js, auto-detected by nixpacks)
+#  Service 2 "oknexus-engine"→ Dockerfile.retest (Python + Playwright)
+#
+# ── First-deploy checklist ──────────────────────────────────────────────────
+#
+#  1. Create a Railway project, add TWO services from this repo:
+#
+#     Service 1  oknexus-app
+#       Builder  : Nixpacks (auto-detected)
+#       Root dir : /   (uses this file)
+#
+#     Service 2  oknexus-engine
+#       Builder  : Dockerfile
+#       Dockerfile path: Dockerfile.retest
+#
+#  2. Set env vars in the Railway dashboard for oknexus-app:
+#
+#       NEXTAUTH_SECRET       <random 32-char string — openssl rand -base64 32>
+#       NEXTAUTH_URL          https://<your-oknexus-app-railway-url>
+#       GOOGLE_CLIENT_ID      <from Google Cloud Console>
+#       GOOGLE_CLIENT_SECRET  <from Google Cloud Console>
+#       GROQ_API_KEY          <your Groq key>
+#       GEMINI_API_KEY        <your Gemini key>
+#       RETEST_ENGINE_URL     https://<your-oknexus-engine-railway-url>
+#       NODE_ENV              production
+#
+#  3. Set env vars for oknexus-engine:
+#
+#       GROQ_API_KEY          <same Groq key>
+#       GROQ_MODEL            llama-3.3-70b-versatile
+#       HEADLESS              true
+#       BROWSER_TIMEOUT_MS    30000
+#
+#  4. After both services are live, update RETEST_ENGINE_URL on oknexus-app
+#     with the actual engine URL and redeploy.
+#
+# ───────────────────────────────────────────────────────────────────────────
+
+[build]
+builder      = "nixpacks"
+buildCommand = "npm install --legacy-peer-deps && npm run build"
+
+[deploy]
+startCommand          = "npm start"
+healthcheckPath       = "/api/auth/providers"
+healthcheckTimeout    = 30
+restartPolicyType     = "on_failure"
+restartPolicyMaxRetries = 3

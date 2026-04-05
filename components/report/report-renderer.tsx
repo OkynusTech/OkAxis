@@ -76,6 +76,18 @@ export function ReportRenderer({
         ...(config.brandingOverride || {})
     };
 
+    // Resolve brand colors with fallbacks
+    const brandColors = {
+        primary: effectiveBranding.primaryColor || '#1F2937',
+        secondary: effectiveBranding.secondaryColor || '#4B5563',
+        accent: effectiveBranding.accentColor || '#2563EB',
+        heading: effectiveBranding.headingColor || effectiveBranding.primaryColor || '#111827',
+        border: effectiveBranding.borderColor || effectiveBranding.secondaryColor || '#E5E7EB',
+        tableHeaderBg: effectiveBranding.tableHeaderBg || effectiveBranding.primaryColor || '#1F2937',
+        tableHeaderText: effectiveBranding.tableHeaderText || '#FFFFFF',
+        link: effectiveBranding.linkColor || effectiveBranding.accentColor || '#2563EB',
+    };
+
     // Apply visual style
     const visualStyle = {
         fontFamily: config.visualStyleOverride?.fontFamily || template.visualStyle?.fontFamily || 'system',
@@ -92,6 +104,10 @@ export function ReportRenderer({
 
     const fontClass = fontClassMap[visualStyle.fontFamily] || 'font-sans';
     const spacingClass = visualStyle.spacingDensity === 'compact' ? 'leading-normal' : 'leading-loose';
+
+    // Brand-aware heading style applied throughout
+    const headingStyle = { color: brandColors.heading };
+    const borderStyle = { borderColor: brandColors.border };
 
     const sectionsToRender: ReportSection[] = config.sections || template.sections;
     const sortedFindings = sortFindingsBySeverity(engagement.findings);
@@ -132,7 +148,7 @@ export function ReportRenderer({
 
         switch (section.id) {
             case 'coverPage':
-                if (effectiveBranding?.useEnhancedCover) {
+                if (effectiveBranding?.useEnhancedCover || effectiveBranding?.coverGraphicUrl || effectiveBranding?.coverBackgroundImageUrl) {
                     return (
                         <EnhancedCover
                             key={section.id}
@@ -143,6 +159,16 @@ export function ReportRenderer({
                             dateRange={coverProps.dateRange}
                             clientLogoUrl={coverProps.clientLogoUrl}
                             providerLogoUrl={coverProps.providerLogoUrl}
+                            primaryColor={brandColors.primary}
+                            secondaryColor={brandColors.secondary}
+                            accentColor={brandColors.accent}
+                            coverTextColor={effectiveBranding.coverTextColor}
+                            coverBackgroundImageUrl={effectiveBranding.coverBackgroundImageUrl}
+                            coverGraphicUrl={effectiveBranding.coverGraphicUrl}
+                            coverGraphicPosition={effectiveBranding.coverGraphicPosition}
+                            coverTitle={config.coverOverride?.title || coverDefaults?.title}
+                            coverSubtitle={config.coverOverride?.subtitle || coverDefaults?.subtitle}
+                            coverFooterText={config.coverOverride?.footerText || coverDefaults?.footerText}
                         />
                     );
                 }
@@ -150,7 +176,7 @@ export function ReportRenderer({
                 return (
                     <div className="page-break-after mb-20 text-center">
                         <div className="mb-12 mt-48">
-                            <h1 className="mb-6 text-3xl font-semibold text-gray-900">{coverProps.assessmentType}</h1>
+                            <h1 className="mb-6 text-3xl font-semibold" style={headingStyle}>{coverProps.assessmentType}</h1>
                             <h2 className="text-2xl font-medium text-gray-700">{coverProps.clientName}</h2>
                         </div>
                         <div className="mb-12 mt-24">
@@ -159,7 +185,7 @@ export function ReportRenderer({
                                 {coverProps.dateRange}
                             </p>
                         </div>
-                        <div className="mt-24 border-t border-gray-200 pt-12">
+                        <div className="mt-24 border-t pt-12" style={borderStyle}>
                             <p className="text-xl font-medium text-gray-900">{coverProps.providerName}</p>
                             {coverProps.providerContact && (
                                 <p className="mt-2 text-sm text-gray-600">{coverProps.providerContact}</p>
@@ -176,7 +202,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-6 text-xl font-semibold text-gray-900">Confidentiality Notice</h2>
+                            <h2 className="mb-6 text-xl font-semibold" style={headingStyle}>Confidentiality Notice</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -186,8 +212,8 @@ export function ReportRenderer({
                 }
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-6 text-xl font-semibold text-gray-900">Confidentiality Notice</h2>
-                        <div className="rounded border border-gray-200 bg-gray-50 p-8">
+                        <h2 className="mb-6 text-xl font-semibold" style={headingStyle}>Confidentiality Notice</h2>
+                        <div className="rounded border p-8" style={{ borderColor: brandColors.border, backgroundColor: `${brandColors.primary}05` }}>
                             <p className="text-sm leading-loose text-gray-700">{provider.legalDisclaimer}</p>
                         </div>
                     </div>
@@ -196,13 +222,13 @@ export function ReportRenderer({
             case 'executiveSummary':
                 return (
                     <div className="mb-16">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Executive Summary</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Executive Summary</h2>
                         <div className="mb-10 whitespace-pre-line leading-loose text-gray-700">
                             {executiveSummaryText}
                         </div>
 
                         <div className="mt-12">
-                            <h3 className="mb-6 text-lg font-medium text-gray-900">Risk Profile</h3>
+                            <h3 className="mb-6 text-lg font-medium" style={headingStyle}>Risk Profile</h3>
 
                             {(effectiveBranding?.showChartsInExecutiveSummary || effectiveBranding?.showRiskMatrix) && (
                                 <div className="mb-8 grid grid-cols-1 gap-12 print:grid-cols-1 page-break-inside-avoid">
@@ -253,7 +279,7 @@ export function ReportRenderer({
             case 'historicalComparison':
                 return (
                     <div className="mb-16">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Historical Comparison</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Historical Comparison</h2>
                         <HistoricalComparison currentEngagement={engagement} />
                     </div>
                 );
@@ -262,7 +288,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Engagement Team</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Engagement Team</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -273,13 +299,13 @@ export function ReportRenderer({
                 if (!config.teamMembers || config.teamMembers.length === 0) return null;
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Engagement Team</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Engagement Team</h2>
                         <table className="w-full text-left text-sm">
                             <thead>
-                                <tr className="border-b-2 border-gray-300">
-                                    <th className="pb-3 font-medium text-gray-900">Name</th>
-                                    <th className="pb-3 font-medium text-gray-900">Role</th>
-                                    <th className="pb-3 font-medium text-gray-900">Qualifications</th>
+                                <tr style={{ borderBottomWidth: '2px', borderBottomStyle: 'solid', borderBottomColor: brandColors.primary }}>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Name</th>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Role</th>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Qualifications</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -299,7 +325,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Scope and Methodology</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Scope and Methodology</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -309,19 +335,19 @@ export function ReportRenderer({
                 }
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Scope and Methodology</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Scope and Methodology</h2>
 
-                        <h3 className="mb-3 text-lg font-medium text-gray-900">Testing Methodology</h3>
+                        <h3 className="mb-3 text-lg font-medium" style={headingStyle}>Testing Methodology</h3>
                         <p className="mb-8 leading-loose text-gray-700">{engagement.metadata.testingMethodology}</p>
 
-                        <h3 className="mb-3 text-lg font-medium text-gray-900">Assessment Period</h3>
+                        <h3 className="mb-3 text-lg font-medium" style={headingStyle}>Assessment Period</h3>
                         <p className="mb-8 leading-loose text-gray-700">
                             {formatDateRange(engagement.metadata.startDate, engagement.metadata.endDate)}
                         </p>
 
                         {engagement.metadata.scope.length > 0 && (
                             <>
-                                <h3 className="mb-3 text-lg font-medium text-gray-900">In Scope</h3>
+                                <h3 className="mb-3 text-lg font-medium" style={headingStyle}>In Scope</h3>
                                 <ul className="mb-8 list-disc pl-6 space-y-1">
                                     {engagement.metadata.scope.map((item, i) => (
                                         <li key={i} className="leading-loose text-gray-700">
@@ -334,7 +360,7 @@ export function ReportRenderer({
 
                         {engagement.metadata.outOfScope.length > 0 && (
                             <>
-                                <h3 className="mb-3 text-lg font-medium text-gray-900">Out of Scope</h3>
+                                <h3 className="mb-3 text-lg font-medium" style={headingStyle}>Out of Scope</h3>
                                 <ul className="mb-8 list-disc pl-6 space-y-1">
                                     {engagement.metadata.outOfScope.map((item, i) => (
                                         <li key={i} className="leading-loose text-gray-700">
@@ -347,7 +373,7 @@ export function ReportRenderer({
 
                         {engagement.metadata.assumptions.length > 0 && (
                             <>
-                                <h3 className="mb-3 text-lg font-medium text-gray-900">Assumptions</h3>
+                                <h3 className="mb-3 text-lg font-medium" style={headingStyle}>Assumptions</h3>
                                 <ul className="mb-8 list-disc pl-6 space-y-1">
                                     {engagement.metadata.assumptions.map((item, i) => (
                                         <li key={i} className="leading-loose text-gray-700">
@@ -360,7 +386,7 @@ export function ReportRenderer({
 
                         {engagement.metadata.limitations.length > 0 && (
                             <>
-                                <h3 className="mb-3 text-lg font-medium text-gray-900">Limitations</h3>
+                                <h3 className="mb-3 text-lg font-medium" style={headingStyle}>Limitations</h3>
                                 <ul className="mb-8 list-disc pl-6 space-y-1">
                                     {engagement.metadata.limitations.map((item, i) => (
                                         <li key={i} className="leading-loose text-gray-700">
@@ -377,7 +403,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Risk Rating Explanation</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Risk Rating Explanation</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -387,10 +413,10 @@ export function ReportRenderer({
                 }
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Risk Rating Explanation</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Risk Rating Explanation</h2>
                         <div className="space-y-6">
                             {['Critical', 'High', 'Medium', 'Low', 'Informational'].map((sev) => (
-                                <div key={sev} className="border-l-2 border-gray-200 pl-6">
+                                <div key={sev} className="border-l-2 pl-6" style={{ borderColor: brandColors.border }}>
                                     <div className="mb-2 flex items-center gap-2">
                                         <SeverityBadge severity={sev as any} />
                                     </div>
@@ -407,7 +433,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Findings Summary</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Findings Summary</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -418,17 +444,17 @@ export function ReportRenderer({
                 if (sortedFindings.length === 0) return null;
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Findings Summary</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Findings Summary</h2>
                         <table className="w-full text-left text-sm">
                             <thead>
-                                <tr className="border-b-2 border-gray-300">
-                                    <th className="pb-3 font-medium text-gray-900">#</th>
-                                    <th className="pb-3 font-medium text-gray-900">Title</th>
-                                    <th className="pb-3 font-medium text-gray-900">Severity</th>
+                                <tr style={{ borderBottomWidth: '2px', borderBottomStyle: 'solid', borderBottomColor: brandColors.primary }}>
+                                    <th className="pb-3 font-medium" style={headingStyle}>#</th>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Title</th>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Severity</th>
                                     {template.includeCVSS && (
-                                        <th className="pb-3 font-medium text-gray-900">CVSS</th>
+                                        <th className="pb-3 font-medium" style={headingStyle}>CVSS</th>
                                     )}
-                                    <th className="pb-3 font-medium text-gray-900">Category</th>
+                                    <th className="pb-3 font-medium" style={headingStyle}>Category</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -458,7 +484,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-10 text-xl font-semibold text-gray-900">Detailed Findings</h2>
+                            <h2 className="mb-10 text-xl font-semibold" style={headingStyle}>Detailed Findings</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -469,9 +495,9 @@ export function ReportRenderer({
                 if (sortedFindings.length === 0) return null;
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-10 text-xl font-semibold text-gray-900">Detailed Findings</h2>
+                        <h2 className="mb-10 text-xl font-semibold" style={headingStyle}>Detailed Findings</h2>
                         {sortedFindings.map((finding, index) => (
-                            <div key={finding.id} className="page-break-before py-12 border-l-2 border-gray-200 pl-8">
+                            <div key={finding.id} className="page-break-before py-12 border-l-2 pl-8" style={{ borderColor: brandColors.border }}>
                                 <div className="mb-6 flex items-start justify-between">
                                     <div>
                                         <h3 className="text-lg font-medium text-gray-900">
@@ -574,7 +600,7 @@ export function ReportRenderer({
                 if (config.sectionOverrides?.[section.id]) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Recommendations</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Recommendations</h2>
                             <MarkdownRenderer
                                 content={config.sectionOverrides[section.id]}
                                 variant="report"
@@ -584,7 +610,7 @@ export function ReportRenderer({
                 }
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Recommendations</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Recommendations</h2>
                         <p className="mb-6 leading-loose text-gray-700">
                             Based on the findings identified during this assessment, the following recommendations
                             are provided:
@@ -618,7 +644,7 @@ export function ReportRenderer({
                 if (conclusionContent) {
                     return (
                         <div className="mb-12">
-                            <h2 className="mb-8 text-xl font-semibold text-gray-900">Conclusion</h2>
+                            <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Conclusion</h2>
                             <div className="leading-loose text-gray-700 whitespace-pre-line space-y-4">
                                 {conclusionContent}
                             </div>
@@ -628,7 +654,7 @@ export function ReportRenderer({
 
                 return (
                     <div className="mb-12">
-                        <h2 className="mb-8 text-xl font-semibold text-gray-900">Conclusion</h2>
+                        <h2 className="mb-8 text-xl font-semibold" style={headingStyle}>Conclusion</h2>
                         <div className="leading-loose text-gray-700 whitespace-pre-line space-y-4">
                             <p>
                                 This {engagement.metadata.assessmentType.toLowerCase()} has identified{' '}
@@ -650,7 +676,7 @@ export function ReportRenderer({
                 const content = config.sectionOverrides?.[section.id] || section.content || '';
                 return (
                     <div className="mb-12">
-                        {section.title && <h2 className="mb-6 text-xl font-semibold text-gray-900">{section.title}</h2>}
+                        {section.title && <h2 className="mb-6 text-xl font-semibold" style={headingStyle}>{section.title}</h2>}
                         <MarkdownRenderer
                             content={content}
                             variant="report"
@@ -660,8 +686,16 @@ export function ReportRenderer({
         }
     };
 
+    // Resolve custom Google Fonts for brand typography
+    const brandFontFamily = effectiveBranding.primaryFont
+        ? `"${effectiveBranding.primaryFont}", ${fontClassMap[visualStyle.fontFamily] === 'font-mono' ? 'monospace' : 'sans-serif'}`
+        : undefined;
+
     return (
-        <div className={cn('report-renderer', fontClass, spacingClass, className)}>
+        <div
+            className={cn('report-renderer', fontClass, spacingClass, className)}
+            style={brandFontFamily ? { fontFamily: brandFontFamily } : undefined}
+        >
             {sectionsToRender.map((section) => {
                 if (!section.isVisible) return null;
 

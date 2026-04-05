@@ -32,6 +32,9 @@ class PageState:
     cookies: list[dict] = field(default_factory=list)
     console_errors: list[str] = field(default_factory=list)
     last_network_response: dict | None = None
+    meta_tags: list[dict] = field(default_factory=list)
+    response_headers: dict | None = None
+    dom_summary: str = ""
     error: str | None = None
 
 
@@ -52,7 +55,7 @@ async def extract_page_state(
     # Visible text (truncated)
     try:
         raw_text = await page.inner_text("body")
-        state.visible_text = raw_text[:2000].strip()
+        state.visible_text = raw_text[:4000].strip()
     except Exception:
         state.visible_text = "[could not extract page text]"
 
@@ -109,7 +112,7 @@ async def extract_page_state(
                     href: el.getAttribute('href'),
                 });
             });
-            return links.slice(0, 20);
+            return links.slice(0, 40);
         }""")
     except Exception:
         state.links = []
@@ -123,6 +126,37 @@ async def extract_page_state(
         ]
     except Exception:
         state.cookies = []
+
+    # Meta tags (security-relevant)
+    try:
+        state.meta_tags = await page.evaluate("""() => {
+            const metas = [];
+            document.querySelectorAll('meta').forEach(el => {
+                const name = el.getAttribute('name') || el.getAttribute('http-equiv') || '';
+                const content = el.getAttribute('content') || '';
+                if (name && content) metas.push({ name, content: content.substring(0, 200) });
+            });
+            return metas.slice(0, 15);
+        }""")
+    except Exception:
+        state.meta_tags = []
+
+    # DOM summary
+    try:
+        state.dom_summary = await page.evaluate("""() => {
+            return `forms:${document.forms.length} inputs:${document.querySelectorAll('input').length} buttons:${document.querySelectorAll('button').length} links:${document.querySelectorAll('a').length} iframes:${document.querySelectorAll('iframe').length}`;
+        }""")
+    except Exception:
+        state.dom_summary = ""
+
+    # Response headers from last navigation
+    if last_response:
+        state.response_headers = {}
+        for header in ['content-security-policy', 'x-frame-options', 'strict-transport-security',
+                       'x-content-type-options', 'x-xss-protection', 'access-control-allow-origin']:
+            val = last_response.get('headers', {}).get(header)
+            if val:
+                state.response_headers[header] = val
 
     # Last network response
     state.last_network_response = last_response
@@ -159,6 +193,13 @@ def state_to_text(state: PageState) -> str:
     if state.cookies:
         cookie_str = ", ".join(f"{c['name']}={c['value']}" for c in state.cookies)
         parts.append(f"COOKIES: {cookie_str}")
+
+    if state.dom_summary:
+        parts.append(f"DOM_SUMMARY: {state.dom_summary}")
+
+    if state.response_headers:
+        headers_str = ", ".join(f"{k}: {v}" for k, v in state.response_headers.items())
+        parts.append(f"SECURITY_HEADERS: {headers_str}")
 
     if state.console_errors:
         parts.append(f"CONSOLE_ERRORS: {'; '.join(state.console_errors[-5:])}")

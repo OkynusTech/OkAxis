@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { getAllClients, deleteClient, getAllEngagements, getAllApplications } from '@/lib/storage';
+import { ClientProfile } from '@/lib/types';
 import { ClientUserManagementDialog } from '@/components/forms/client-user-management-dialog';
 
 export default function ClientsPage() {

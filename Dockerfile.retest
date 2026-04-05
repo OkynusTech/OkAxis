@@ -1,17 +1,22 @@
-# Use the official Playwright Python image — has Chromium + deps pre-installed
+# Dockerfile.retest — Python Retest Engine (Service 2 on Railway)
+#
+# Base image ships Chromium + all system deps pre-installed.
+# No need to run `playwright install` — browsers are already present.
+
 FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
 
 WORKDIR /app
 
-# Copy only the retest engine source
+# Copy engine source and dependencies
 COPY retest_engine/ ./retest_engine/
 COPY retest_engine/requirements.txt ./requirements.txt
 
-# Install Python dependencies (playwright binaries already in base image)
+# Install Python packages (Playwright Python bindings only — browsers already in image)
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the Flask port
+# Railway injects $PORT at runtime; fall back to 5555 for local use
 EXPOSE 5555
 
-# Start the Flask server, binding to Railway's dynamic $PORT (or 5555 locally)
+# Use gunicorn-style single-worker Flask for production stability
+# (plain `flask run` is fine for Railway's single-container model too)
 CMD ["sh", "-c", "python -m flask --app retest_engine.server run --host 0.0.0.0 --port ${PORT:-5555}"]

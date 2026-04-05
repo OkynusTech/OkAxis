@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, SVGProps } from "react";
 
 import { siteConfig } from "@/config/site";
 
@@ -8,7 +8,6 @@ import ShadcnUi from "../../logos/shadcn-ui";
 import Tailwind from "../../logos/tailwind";
 import TypeScript from "../../logos/typescript";
 import { Badge } from "../../ui/badge";
-import Logo from "../../ui/logo";
 import { Section } from "../../ui/section";
 
 interface LogosProps {
@@ -16,6 +15,15 @@ interface LogosProps {
   badge?: ReactNode | false;
   logos?: ReactNode[] | false;
   className?: string;
+}
+
+function TechLogo({ image: Image, name }: { image: (props: SVGProps<SVGSVGElement>) => React.JSX.Element; name: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <Image className="h-10 w-10" />
+      <span className="text-xs text-muted-foreground">{name}</span>
+    </div>
+  );
 }
 
 export default function Logos({
@@ -26,22 +34,11 @@ export default function Logos({
     </Badge>
   ),
   logos = [
-    <Logo key="figma" image={Figma} name="Figma" />,
-    <Logo key="react" image={React} name="React" version="19.2.1" />,
-    <Logo
-      key="typescript"
-      image={TypeScript}
-      name="TypeScript"
-      version="5.9.3"
-    />,
-    <Logo
-      key="shadcn"
-      image={ShadcnUi}
-      name="Shadcn/ui"
-      version="3.5.1"
-      badge="New"
-    />,
-    <Logo key="tailwind" image={Tailwind} name="Tailwind" version="4.1.14" />,
+    <TechLogo key="figma" image={Figma} name="Figma" />,
+    <TechLogo key="react" image={React} name="React" />,
+    <TechLogo key="typescript" image={TypeScript} name="TypeScript" />,
+    <TechLogo key="shadcn" image={ShadcnUi} name="Shadcn/ui" />,
+    <TechLogo key="tailwind" image={Tailwind} name="Tailwind" />,
   ],
   className,
 }: LogosProps) {

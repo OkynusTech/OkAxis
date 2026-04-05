@@ -13,15 +13,16 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { ReportTemplate, ReportSection, BrandingConfig, VisualStyleConfig } from '@/lib/types';
+import { generateCoverGraphicAction } from '@/app/actions/ai-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { GripVertical, Eye, EyeOff } from 'lucide-react';
+import { GripVertical, Eye, EyeOff, Loader2, Sparkles, Trash2, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface TemplateEditorProps {
@@ -314,7 +315,10 @@ function BrandingEditor({
     const [newColor, setNewColor] = useState(config.primaryColor || '#000000');
     const [newFont, setNewFont] = useState('');
     const [bTab, setBTab] = useState<'colors' | 'typography' | 'logos' | 'toggles'>('colors');
-    const [imageTab, setImageTab] = useState<'logos' | 'cover'>('logos');
+    const [imageTab, setImageTab] = useState<'logos' | 'cover' | 'graphic'>('logos');
+    const [graphicPrompt, setGraphicPrompt] = useState('');
+    const [isGenerating, startGenerating] = useTransition();
+    const [graphicError, setGraphicError] = useState('');
 
     const handle = (field: keyof BrandingConfig, value: any) =>
         onChange({ ...config, [field]: value });
@@ -547,15 +551,19 @@ function BrandingEditor({
                 {bTab === 'logos' && (
                     <div className="space-y-5">
                         <div className="flex gap-1 border-b pb-2 mb-4">
-                            {(['logos', 'cover'] as const).map(t => (
+                            {([
+                                { id: 'logos' as const, label: 'Logos' },
+                                { id: 'cover' as const, label: 'Cover Image' },
+                                { id: 'graphic' as const, label: 'Cover Graphic' },
+                            ]).map(t => (
                                 <button
-                                    key={t}
-                                    onClick={() => setImageTab(t)}
+                                    key={t.id}
+                                    onClick={() => setImageTab(t.id)}
                                     className={cn(
-                                        'px-3 py-1.5 text-xs font-medium capitalize transition-colors',
-                                        imageTab === t ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'
+                                        'px-3 py-1.5 text-xs font-medium transition-colors',
+                                        imageTab === t.id ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'
                                     )}
-                                >{t === 'logos' ? 'Logos' : 'Cover Image'}</button>
+                                >{t.label}</button>
                             ))}
                         </div>
 
@@ -602,17 +610,29 @@ function BrandingEditor({
 
                         {imageTab === 'cover' && (
                             <div className="space-y-4">
-                                <p className="text-xs text-muted-foreground">Provide a URL (or base64 data URL) for a full-bleed cover page background image. Dimensions of 1200×800px at 96 DPI work best.</p>
+                                <p className="text-xs text-muted-foreground">Provide a URL (or base64 data URL) for a full-bleed cover page background image. Dimensions of 1200x800px at 96 DPI work best.</p>
                                 <div className="space-y-2">
                                     <Label htmlFor="coverBg">Cover Background Image URL</Label>
                                     <Input id="coverBg" value={config.coverBackgroundImageUrl || ''} onChange={e => handle('coverBackgroundImageUrl', e.target.value)} placeholder="https://... or data:image/..." />
                                 </div>
                                 {config.coverBackgroundImageUrl && (
-                                    <div className="border rounded-lg overflow-hidden h-36">
+                                    <div className="border rounded-lg overflow-hidden h-36 relative group">
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={config.coverBackgroundImageUrl} alt="Cover Background" className="w-full h-full object-cover" />
+                                        <button
+                                            onClick={() => handle('coverBackgroundImageUrl', '')}
+                                            className="absolute top-2 right-2 h-7 w-7 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        ><Trash2 className="h-3.5 w-3.5" /></button>
                                     </div>
                                 )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="coverTextColor">Cover Text Color (for dark backgrounds)</Label>
+                                    <div className="flex gap-2 items-center">
+                                        <input type="color" value={config.coverTextColor || '#ffffff'} onChange={e => handle('coverTextColor', e.target.value)} className="w-10 h-10 rounded cursor-pointer border border-input shrink-0" />
+                                        <Input value={config.coverTextColor || ''} onChange={e => handle('coverTextColor', e.target.value)} placeholder="#ffffff (auto if empty)" className="font-mono text-xs h-9 w-28" />
+                                        {config.coverTextColor && <Button size="sm" variant="ghost" onClick={() => handle('coverTextColor', undefined)}>Reset</Button>}
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="coverTitle">Cover Title Override</Label>
@@ -626,6 +646,104 @@ function BrandingEditor({
                                 <div className="space-y-2">
                                     <Label htmlFor="coverFooter">Cover Footer Text</Label>
                                     <Input id="coverFooter" value={config.coverSettings?.footerText || ''} onChange={e => handle('coverSettings', { ...config.coverSettings, footerText: e.target.value })} placeholder="Confidential — For internal use only" />
+                                </div>
+                            </div>
+                        )}
+
+                        {imageTab === 'graphic' && (
+                            <div className="space-y-4">
+                                <p className="text-xs text-muted-foreground">
+                                    Add a decorative graphic or illustration to your cover page. Upload a URL or generate one with AI.
+                                </p>
+
+                                {/* Current graphic preview */}
+                                {config.coverGraphicUrl && (
+                                    <div className="border rounded-lg overflow-hidden relative group">
+                                        <div className="bg-muted/30 p-4 flex justify-center">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={config.coverGraphicUrl} alt="Cover Graphic" className="max-h-48 object-contain" />
+                                        </div>
+                                        <button
+                                            onClick={() => handle('coverGraphicUrl', '')}
+                                            className="absolute top-2 right-2 h-7 w-7 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                        ><Trash2 className="h-3.5 w-3.5" /></button>
+                                    </div>
+                                )}
+
+                                {/* Upload via URL */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="coverGraphic">Graphic Image URL</Label>
+                                    <Input id="coverGraphic" value={config.coverGraphicUrl || ''} onChange={e => handle('coverGraphicUrl', e.target.value)} placeholder="https://... or data:image/..." />
+                                </div>
+
+                                {/* Graphic position */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="graphicPosition">Graphic Position on Cover</Label>
+                                    <select
+                                        id="graphicPosition"
+                                        value={config.coverGraphicPosition || 'center'}
+                                        onChange={e => handle('coverGraphicPosition', e.target.value)}
+                                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                    >
+                                        <option value="top">Top — above the title</option>
+                                        <option value="center">Center — between title and provider</option>
+                                        <option value="bottom">Bottom — above provider info</option>
+                                        <option value="background">Watermark — faded behind content</option>
+                                    </select>
+                                </div>
+
+                                {/* AI Generation */}
+                                <div className="border-t pt-4 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 text-primary" />
+                                        <Label className="text-sm font-semibold">Generate with AI</Label>
+                                        <span className="text-[10px] bg-primary/10 text-primary rounded-full px-2 py-0.5 font-bold">Imagen</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Describe what you want and AI will generate a professional cover graphic. Requires GEMINI_API_KEY.
+                                    </p>
+                                    <Input
+                                        value={graphicPrompt}
+                                        onChange={e => setGraphicPrompt(e.target.value)}
+                                        placeholder="e.g., Abstract shield with network nodes, blue and white tones"
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && graphicPrompt.trim() && !isGenerating) {
+                                                setGraphicError('');
+                                                startGenerating(async () => {
+                                                    const result = await generateCoverGraphicAction(graphicPrompt);
+                                                    if (result.imageUrl) {
+                                                        handle('coverGraphicUrl', result.imageUrl);
+                                                        setGraphicPrompt('');
+                                                    } else {
+                                                        setGraphicError(result.error || 'Generation failed');
+                                                    }
+                                                });
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        size="sm"
+                                        disabled={!graphicPrompt.trim() || isGenerating}
+                                        onClick={() => {
+                                            setGraphicError('');
+                                            startGenerating(async () => {
+                                                const result = await generateCoverGraphicAction(graphicPrompt);
+                                                if (result.imageUrl) {
+                                                    handle('coverGraphicUrl', result.imageUrl);
+                                                    setGraphicPrompt('');
+                                                } else {
+                                                    setGraphicError(result.error || 'Generation failed');
+                                                }
+                                            });
+                                        }}
+                                        className="gap-2"
+                                    >
+                                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                                        {isGenerating ? 'Generating...' : 'Generate Graphic'}
+                                    </Button>
+                                    {graphicError && (
+                                        <p className="text-xs text-destructive">{graphicError}</p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -653,6 +771,28 @@ function BrandingEditor({
                                     </div>
                                 </label>
                             ))}
+                        </div>
+
+                        <div className="space-y-3 pt-2 border-t">
+                            <Label className="text-xs font-semibold">Report-Wide Brand Colors</Label>
+                            <p className="text-xs text-muted-foreground">Override specific element colors across the entire report. Leave empty to auto-derive from your palette.</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                {([
+                                    { field: 'headingColor' as const, label: 'Section Headings', fallback: config.primaryColor },
+                                    { field: 'borderColor' as const, label: 'Borders & Dividers', fallback: '#E5E7EB' },
+                                    { field: 'tableHeaderBg' as const, label: 'Table Header BG', fallback: config.primaryColor },
+                                    { field: 'tableHeaderText' as const, label: 'Table Header Text', fallback: '#FFFFFF' },
+                                    { field: 'linkColor' as const, label: 'Links & Accents', fallback: config.accentColor },
+                                ]).map(({ field, label, fallback }) => (
+                                    <div key={field} className="flex items-center gap-2">
+                                        <input type="color" value={(config as any)[field] || fallback || '#000000'} onChange={e => handle(field, e.target.value)} className="w-8 h-8 rounded cursor-pointer border border-input shrink-0" />
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-medium truncate">{label}</p>
+                                            <p className="text-[10px] font-mono text-muted-foreground">{(config as any)[field] || 'auto'}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="space-y-3 pt-2 border-t">

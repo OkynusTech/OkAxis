@@ -61,7 +61,7 @@ export default function EngineerDetailPage() {
         engineerEngagements.forEach(e => {
             // Assessment type is a proxy for app type often (e.g. Cloud Assessment -> Cloud App)
             if (e.metadata.assessmentType === 'Cloud Security Assessment') uniqueAppTypes.add('Cloud');
-            if (e.metadata.assessmentType === 'Mobile Security Assessment') uniqueAppTypes.add('Mobile'); // If added later
+            if ((e.metadata.assessmentType as string) === 'Mobile Security Assessment') uniqueAppTypes.add('Mobile'); // If added later
 
             // Or look at the App itself
             const app = getApplication(e.applicationId);

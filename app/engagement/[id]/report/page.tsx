@@ -36,7 +36,7 @@ export default function ReportPage() {
         window.print();
     };
 
-    const handlePublish = () => {
+    const handlePublish = (isNewVersion?: boolean) => {
         if (!engagement) return;
 
         if (confirm('Are you sure you want to finalize this report? It will become visible to the client in their portal.')) {

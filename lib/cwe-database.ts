@@ -183,11 +183,6 @@ export const CWE_DATABASE: Record<string, CWEEntry> = {
         name: 'Allocation of Resources Without Limits or Throttling',
         description: 'The software allocates a reusable resource or group of resources on behalf of an actor without imposing any restrictions on the size or number of resources that can be allocated, in violation of the intended security policy for that actor.'
     },
-    'CWE-798': {
-        id: 'CWE-798',
-        name: 'Use of Hard-coded Credentials',
-        description: 'The software contains hard-coded credentials, such as a password or cryptographic key, which it uses for its own inbound authentication, outbound communication to external components, or encryption of internal data.'
-    },
     'CWE-312': {
         id: 'CWE-312',
         name: 'Cleartext Storage of Sensitive Information',
@@ -303,11 +298,6 @@ export const CWE_DATABASE: Record<string, CWEEntry> = {
         name: 'Use of Incorrectly-Resolved Name or Reference',
         description: 'The software uses a name or reference to access a resource, but the name/reference resolves to a resource that is outside of the intended control sphere.'
     },
-    'CWE-611': {
-        id: 'CWE-611',
-        name: 'Improper Restriction of XML External Entity Reference',
-        description: 'The software processes an XML document that can contain XML entities with URIs that resolve to documents outside of the intended sphere of control, causing the product to embed incorrect documents into its output.'
-    },
     'CWE-917': {
         id: 'CWE-917',
         name: 'Improper Neutralization of Special Elements used in an Expression Language Statement (\'Expression Language Injection\')',
@@ -372,11 +362,6 @@ export const CWE_DATABASE: Record<string, CWEEntry> = {
         id: 'CWE-640',
         name: 'Weak Password Recovery Mechanism for Forgotten Password',
         description: 'The software contains a mechanism for users to recover or change their passwords without knowing the original password, but the mechanism is weak.'
-    },
-    'CWE-798': {
-        id: 'CWE-798',
-        name: 'Use of Hard-coded Credentials',
-        description: 'The software contains hard-coded credentials, such as a password or cryptographic key, which it uses for its own inbound authentication, outbound communication to external components, or encryption of internal data.'
     },
     'CWE-922': {
         id: 'CWE-922',
