@@ -22,7 +22,11 @@ from .page_state import extract_page_state, state_to_text
 from .executor import browser_session, _take_screenshot, ExecutionResult
 from .config import (
     MAX_AGENT_TURNS, BROWSER_TIMEOUT_MS,
-    XSS_MARKER_PAYLOAD,
+    XSS_MARKER_PAYLOAD, XSS_MARKER_EXPR,
+)
+from .decision import (
+    check_idor, check_xss, check_open_redirect,
+    check_auth_bypass, check_login_success,
 )
 from .logger import get_logger
 
@@ -122,6 +126,7 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
         parse_failures = 0
         low_confidence_bounced = False
         effective_max_turns = _TURN_BUDGET.get(vuln_type, MAX_AGENT_TURNS)
+        login_verified = False  # tracks whether we confirmed login success
 
         def _emit(event_type: str, data: dict):
             if event_bus:
@@ -213,6 +218,57 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
 
             # Take a screenshot after every action for evidence
             await _take_screenshot(page, exec_result, f"turn_{turn_num}")
+
+            # ── DETERMINISTIC PRE-CHECK ───────────────────────────────────
+            # Try to reach a verdict from hard evidence before the next LLM call.
+            # This avoids wasting a turn just to ask the LLM something obvious.
+            det_verdict = await _run_deterministic_check(
+                vuln_type, page, last_response, action, action_result
+            )
+            if det_verdict:
+                log.info(
+                    f"  [DET] Deterministic verdict: {det_verdict['status']} "
+                    f"(confidence={det_verdict['confidence']:.2f})"
+                )
+                _emit("verdict", det_verdict)
+                await _take_screenshot(page, exec_result, "deterministic_verdict")
+                verdict = {
+                    "action": "verdict",
+                    **det_verdict,
+                    "reasoning": det_verdict["summary"],
+                }
+                break
+
+            # ── LOGIN SUCCESS CHECK ───────────────────────────────────────
+            # After the first few turns, verify login actually worked.
+            # If it failed, abort immediately — wrong verdicts are worse than no verdict.
+            if not login_verified and turn_num <= 3 and action_type in ("click", "fill"):
+                try:
+                    state_now = await extract_page_state(page, context, last_response)
+                    login_ok = check_login_success(
+                        state_now.cookies, state_now.visible_text
+                    )
+                    if not login_ok:
+                        log.warning(
+                            "  [AUTH] Login appears to have failed — aborting retest "
+                            "to avoid a false verdict."
+                        )
+                        verdict = {
+                            "action": "verdict",
+                            "status": "failed",
+                            "confidence": 0.85,
+                            "summary": (
+                                "Authentication failed. Cannot determine vulnerability status "
+                                "without a valid session."
+                            ),
+                            "reasoning": "Login failure detected after credential submission.",
+                        }
+                        break
+                    else:
+                        login_verified = True
+                        log.info("  [AUTH] Login confirmed — continuing retest.")
+                except Exception as exc:
+                    log.warning(f"  [AUTH] Could not verify login state: {exc}")
 
             # Record turn
             turn = AgentTurn(
@@ -424,6 +480,64 @@ async def _do_execute_action(page, context, action: dict) -> str:
 
     else:
         return f"ERROR: Unknown action type '{atype}'"
+
+
+# ---------------------------------------------------------------------------
+# Deterministic check helper
+# ---------------------------------------------------------------------------
+
+async def _run_deterministic_check(
+    vuln_type: str,
+    page,
+    last_response: dict | None,
+    action: dict,
+    action_result: str,
+) -> dict | None:
+    """
+    After each action, check if we already have enough evidence to issue a
+    verdict WITHOUT calling the LLM again.
+
+    Returns a verdict dict if confident, None if we need the LLM to decide.
+    """
+    if not last_response:
+        return None
+
+    http_status = last_response.get("status", 0)
+    response_body = last_response.get("body_snippet", "")
+    action_type = action.get("action", "")
+
+    # Only run checks after meaningful actions (not just navigation)
+    if action_type not in ("api_request", "click", "check_redirect", "evaluate_js"):
+        return None
+
+    if vuln_type == "IDOR" and action_type == "api_request":
+        return check_idor(http_status, response_body)
+
+    elif vuln_type in ("STORED_XSS", "REFLECTED_XSS") and action_type == "evaluate_js":
+        # The JS marker check result is in the action_result string
+        js_executed = "returned: 1" in action_result or "returned: true" in action_result.lower()
+        js_evaluated = "SUCCESS: evaluate" in action_result
+        if js_evaluated:
+            return check_xss(1 if js_executed else 0)
+        return None
+
+    elif vuln_type == "OPEN_REDIRECT" and action_type == "check_redirect":
+        # Extract initial and final URLs from action_result
+        # action_result looks like: "SUCCESS: Navigated to <url> -> Final URL: <url> (HTTP ...)"
+        try:
+            initial_url = action.get("url", "")
+            # Parse final URL from result string
+            if "Final URL:" in action_result:
+                final_url = action_result.split("Final URL:")[1].split("(")[0].strip()
+                return check_open_redirect(initial_url, final_url)
+        except Exception:
+            pass
+        return None
+
+    elif vuln_type == "AUTH_BYPASS" and action_type == "api_request":
+        return check_auth_bypass(http_status, response_body)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
