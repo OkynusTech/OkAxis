@@ -20,6 +20,7 @@ from .agent_brain import AgentBrain, AgentTurn
 from .auth import setup_auth
 from .page_state import extract_page_state, state_to_text
 from .executor import browser_session, _take_screenshot, ExecutionResult
+from .state_machine import RetestFSM
 from .config import (
     MAX_AGENT_TURNS, BROWSER_TIMEOUT_MS,
     XSS_MARKER_PAYLOAD, XSS_MARKER_EXPR,
@@ -123,6 +124,9 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
             if not auth_ok:
                 return _abort(f"Authentication setup failed for type '{auth_type}'")
 
+        # Setup FSM
+        fsm = RetestFSM(vuln_type)
+
         parse_failures = 0
         low_confidence_bounced = False
         effective_max_turns = _TURN_BUDGET.get(vuln_type, MAX_AGENT_TURNS)
@@ -149,7 +153,11 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
 
             # REASON: ask the brain for next action
             try:
-                action = brain.decide_next_action(state_text)
+                action = brain.decide_next_action(
+                    state_text,
+                    fsm.current_stage().name,
+                    fsm.current_stage().instruction,
+                )
                 parse_failures = 0  # reset on success
             except Exception as exc:
                 parse_failures += 1
@@ -205,6 +213,17 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
                 # Take final screenshot
                 await _take_screenshot(page, exec_result, "final_state")
                 break
+
+            # CHECK FOR NEXT STAGE
+            if action_type == "next_stage":
+                if fsm.advance():
+                    action_result = f"SUCCESS: Advanced to stage {fsm.current_stage().name}."
+                else:
+                    action_result = "ERROR: Already at the final stage."
+                
+                log.info(f"  FSM: {action_result}")
+                brain.feed_action_result(action_result)
+                continue
 
             # ACT: execute the action
             action_result = await _execute_action(
