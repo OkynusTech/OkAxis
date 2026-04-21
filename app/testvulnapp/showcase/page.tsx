@@ -142,7 +142,7 @@ export default function VulnLabPage() {
 
   useEffect(() => { fetchComments(); }, []);
 
-  const authHeaders = () => token ? { 'X-Session-Token': token } : {};
+  const authHeaders = (): Record<string, string> => token ? { 'X-Session-Token': token } : {};
 
   /* ── Auth actions ──────────────────────────────────────────────────────── */
 

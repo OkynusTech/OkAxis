@@ -70,7 +70,6 @@ export function CreateArtifactDialog({
             content: content.trim(),
             visibility: 'internal-only',
             metadata: {},
-            visibility: 'internal-only',
         });
 
         // Reset form

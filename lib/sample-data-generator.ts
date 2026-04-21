@@ -147,13 +147,14 @@ function generateSampleFindings(
     count: number,
     includeSeverities?: SeverityLevel[]
 ): Finding[] {
-    const generators = {
+    const generators: Record<string, () => Finding[]> = {
         'Penetration Testing': generatePenetrationFindings,
         'Threat Modeling': generateThreatModelingFindings,
         'Architecture Review': generateArchitectureFindings,
         'Security Review': generatePenetrationFindings, // Similar to pentest
         'Cloud Security Assessment': generateCloudFindings,
-        'Network Security Assessment': generateNetworkFindings
+        'Network Security Assessment': generateNetworkFindings,
+        'Mobile Security Assessment': generatePenetrationFindings
     };
 
     const generator = generators[type] || generatePenetrationFindings;
@@ -161,7 +162,7 @@ function generateSampleFindings(
 
     // Filter by severity if specified
     let filtered = includeSeverities
-        ? allFindings.filter(f => includeSeverities.includes(f.severity))
+        ? allFindings.filter((f: Finding) => includeSeverities.includes(f.severity))
         : allFindings;
 
     // Take requested count
