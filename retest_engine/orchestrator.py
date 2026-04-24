@@ -14,6 +14,7 @@ The agent:
 import asyncio
 import time
 import traceback
+from urllib.parse import urlparse
 from typing import Any
 
 from .agent_brain import AgentBrain, AgentTurn
@@ -73,6 +74,20 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
         return _abort(f"Unsupported type '{vuln_type}'")
     if not target_url:
         return _abort("target_url is empty")
+    if not _is_valid_http_url(target_url):
+        return _abort(
+            "Invalid target_url. Provide a full URL including scheme and host, "
+            "for example: http://localhost:3000/labs/idor/vuln/invoice/2?as=alice"
+        )
+    if "localhost:PORT" in target_url or "127.0.0.1:PORT" in target_url:
+        return _abort(
+            "target_url contains an unresolved PORT placeholder. Replace PORT with a real number, "
+            "for example: http://localhost:3000/..."
+        )
+
+    # Replace common placeholder hosts in steps with the real target host/port.
+    # This prevents the LLM from navigating to invalid URLs like localhost:PORT.
+    steps = _normalize_step_placeholders(steps, target_url)
     auth_type_check = credentials.get("auth_type", "form")
     if auth_type_check == "form":
         if not credentials.get("username") or not credentials.get("password"):
@@ -123,13 +138,50 @@ async def run(retest_request: dict[str, Any], event_bus=None) -> dict[str, Any]:
 
     log.info("[quick_check] Pre-flight inconclusive — launching full agentic loop")
 
+    # ── REFLECTED XSS URL PREPARATION ─────────────────────────────────────────
+    # For Reflected XSS, auto-inject the marker payload into the target URL
+    # if it doesn't already have it. This enables the browser shortcut to work.
+    reflected_xss_url = target_url
+    if vuln_type == "REFLECTED_XSS":
+        from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+        if "__xss_oknexus" not in target_url:
+            log.info("[rxss_prep] Injecting XSS marker payload into target URL")
+            try:
+                parsed = urlparse(target_url)
+                params = parse_qs(parsed.query, keep_blank_values=True)
+                
+                # Determine the injection parameter (try common names: input, q, search, keyword, etc.)
+                injection_param = "input"  # default
+                for param_name in ["input", "q", "search", "keyword", "message", "comment"]:
+                    if param_name in params:
+                        injection_param = param_name
+                        break
+                
+                # Inject the marker into the chosen parameter
+                params[injection_param] = [XSS_MARKER_PAYLOAD]
+                
+                # Rebuild URL with marker injected
+                new_query = urlencode(params, doseq=True)
+                reflected_xss_url = urlunparse((
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path,
+                    parsed.params,
+                    new_query,
+                    parsed.fragment
+                ))
+                log.info(f"[rxss_prep] Injected marker: {reflected_xss_url[:100]}...")
+            except Exception as exc:
+                log.warning(f"[rxss_prep] Could not inject marker: {exc} — using original URL")
+                reflected_xss_url = target_url
+
     # ── REFLECTED XSS BROWSER SHORTCUT (No LLM) ───────────────────────────────
-    # If the URL already contains our XSS marker, we don't need to ask the LLM
+    # If the URL contains our XSS marker, we don't need to ask the LLM
     # what action to take — we KNOW the action is "navigate then eval JS".
     # Skip the entire LLM loop and just do: navigate → check marker → verdict.
-    if vuln_type == "REFLECTED_XSS" and "__xss_oknexus" in target_url:
+    if vuln_type == "REFLECTED_XSS" and "__xss_oknexus" in reflected_xss_url:
         log.info("[rxss_shortcut] Marker URL detected — using browser shortcut (no LLM)")
-        xss_verdict = await _reflected_xss_browser_check(target_url, retest_id, event_bus)
+        xss_verdict = await _reflected_xss_browser_check(reflected_xss_url, retest_id, event_bus)
         if xss_verdict:
             return xss_verdict
 
@@ -726,3 +778,32 @@ def _output(retest_id: str, status: str, evidence: dict,
     if error:
         result["error"] = error
     return result
+
+
+def _is_valid_http_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+    except Exception:
+        return False
+
+
+def _normalize_step_placeholders(steps: str, target_url: str) -> str:
+    if not steps:
+        return steps
+    try:
+        parsed = urlparse(target_url)
+        host = parsed.netloc
+        normalized = steps
+        for placeholder in (
+            "localhost:PORT",
+            "127.0.0.1:PORT",
+            "http://localhost:PORT",
+            "https://localhost:PORT",
+            "http://127.0.0.1:PORT",
+            "https://127.0.0.1:PORT",
+        ):
+            normalized = normalized.replace(placeholder, host)
+        return normalized
+    except Exception:
+        return steps

@@ -79,7 +79,7 @@ def check_idor(http_status: int, response_body: str) -> dict | None:
     # Clear signal: HTTP 200 + sensitive data in JSON field format → NOT FIXED
     # Use "fieldname": pattern (not bare keyword) to avoid false positives from
     # HTML form labels, hint text like "enter your password", or page boilerplate.
-    if http_status == 200 and len(response_body) > 50:
+    if http_status == 200 and len(response_body) > 20:
         leaked = [
             kw for kw in _DATA_LEAK_KEYWORDS
             if f'"{kw}":' in body_lower or f"'{kw}':" in body_lower
