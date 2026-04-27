@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    command: 'start --masterkey "MasterkeyNeedsToBeChanged123" --config /etc/zitadel/zitadel-config.yaml'
+    ports:
+      - "8080:8080"
+    environment:
+      DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+    volumes:
+      - zitadel-storage:/zitadel/data
+      - ./zitadel-config.yaml:/etc/zitadel/zitadel-config.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/oauth/v2/.well-known/openid-configuration"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  zitadel-storage:

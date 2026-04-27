@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: zitadel
+      POSTGRES_PASSWORD: zitadel
+      POSTGRES_DB: zitadel
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zitadel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    command: 'start --masterkey "MasterkeyNeedsToBeChanged123"'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ZITADEL_DATABASE_POSTGRES_HOST: postgres
+      ZITADEL_DATABASE_POSTGRES_USER: zitadel
+      ZITADEL_DATABASE_POSTGRES_PASSWORD: zitadel
+      ZITADEL_DATABASE_POSTGRES_SSL_MODE: disable
+      ZITADEL_FIRSTINSTANCE_ORG_NAME: OkNexus
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME: admin
+      ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD: Admin@123!Change
+      ZITADEL_EXTERNALDOMAIN: localhost:8080
+      ZITADEL_EXTERNALSCHEME: http
+    volumes:
+      - zitadel_data:/zitadel/data
+
+volumes:
+  postgres_data:
+  zitadel_data:

@@ -1,0 +1,48 @@
+
+services:
+  db:
+    image: postgres:12-alpine
+    environment:
+      - POSTGRES_USER=zitadel
+      - POSTGRES_PASSWORD=zitadel
+      - POSTGRES_DB=zitadel
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zitadel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - zitadel-network
+
+  zitadel:
+    image: ghcr.io/zitadel/zitadel:latest
+    command: start --masterkey=MasterkeyNeedsToBeChanged123 --config=/etc/zitadel/config.yaml
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_MAX_CONN_RETRIES=10
+    ports:
+      - "8080:8080"
+    volumes:
+      - zitadel_data:/zitadel/data
+      - ./zitadel-config.yaml:/etc/zitadel/config.yaml:ro
+    networks:
+      - zitadel-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/oauth/v2/.well-known/openid-configuration"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+volumes:
+  postgres_data:
+    driver: local
+  zitadel_data:
+    driver: local
+
+networks:
+  zitadel-network:
+    driver: bridge
