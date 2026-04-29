@@ -15,13 +15,7 @@ import {
 } from '@/lib/constants';
 import { generateFindingId } from '@/lib/report-utils';
 import { validateFinding, ValidationError } from '@/lib/finding-validation';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from '@/components/ui/dialog';
+import { deleteComponent } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -203,6 +197,15 @@ export function FindingDialog({
         } catch (error) {
             console.error('Failed to create component:', error);
             alert('Failed to create component');
+        }
+    };
+
+    const handleDeleteComponent = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('Delete this component? This will remove it from the application entirely.')) return;
+        if (deleteComponent(id)) {
+            setAvailableComponents(prev => prev.filter(c => c.id !== id));
+            setSelectedComponentIds(prev => prev.filter(compId => compId !== id));
         }
     };
 
@@ -528,21 +531,26 @@ export function FindingDialog({
 
     return (
         <>
-            <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent
-                    className="max-h-[90vh] max-w-4xl overflow-y-auto"
-                    onInteractOutside={(e) => {
-                        const target = e.target as HTMLElement;
-                        if (target.closest('.ai-refinement-popover')) {
-                            e.preventDefault();
-                        }
-                    }}
-                >
-                    <DialogHeader>
-                        <DialogTitle>{finding ? 'Edit Finding' : 'Add New Finding'}</DialogTitle>
-                    </DialogHeader>
+            {open && (
+                <div className="flex flex-col h-full bg-background border-l relative overflow-hidden shadow-2xl z-10 w-full animate-in slide-in-from-right-8 duration-300">
+                    {/* Persistent Header with Save Button */}
+                    <div className="flex items-center justify-between px-6 py-4 border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+                        <div>
+                            <h2 className="text-xl font-bold">{finding ? 'Edit Finding' : 'Add New Finding'}</h2>
+                            <p className="text-sm text-muted-foreground">Changes can be saved at any time.</p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => onOpenChange(false)}>
+                                Close
+                            </Button>
+                            <Button onClick={handleSave} className="shadow-md font-semibold bg-blue-600 hover:bg-blue-700 text-white">
+                                Save Finding
+                            </Button>
+                        </div>
+                    </div>
 
-                    <div className="space-y-4">
+                    <div className="flex-1 overflow-y-auto p-6">
+                        <div className="space-y-6 max-w-4xl mx-auto">
                         {/* Semantic Similarity Results */}
                         {similarityResults.length > 0 && (
                             <div className="rounded-md border border-blue-500/20 bg-blue-500/10 p-4">
@@ -806,7 +814,12 @@ export function FindingDialog({
                                             />
                                             <label htmlFor={`comp-${comp.id}`} className="flex-1 text-sm text-slate-700 dark:text-slate-300 cursor-pointer select-none flex items-center justify-between">
                                                 <span>{comp.name}</span>
-                                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{comp.type}</Badge>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-normal bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">{comp.type}</Badge>
+                                                    <button type="button" onClick={(e) => handleDeleteComponent(comp.id, e)} className="p-1 hover:bg-red-100 rounded text-red-500 transition-colors">
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </button>
+                                                </div>
                                             </label>
                                         </div>
                                     ))}
@@ -1292,15 +1305,9 @@ export function FindingDialog({
                             </>
                         )}
                     </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => onOpenChange(false)}>
-                            Cancel
-                        </Button>
-                        <Button onClick={handleSave}>Save Finding</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            )}
 
             {selectedRemediationEvent && (
                 <VerifyRemediationDialog

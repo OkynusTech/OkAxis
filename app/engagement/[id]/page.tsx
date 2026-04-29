@@ -12,6 +12,8 @@ import { formatDateRange, calculateFindingStats, sortFindingsBySeverity } from '
 import { SeverityBadge } from '@/components/ui/severity-badge';
 import { FindingDialog } from '@/components/forms/finding-dialog';
 import { ReportConfigDialog } from '@/components/forms/report-config-dialog';
+import { EditEngagementDialog } from '@/components/forms/edit-engagement-dialog';
+import { MarkdownInline } from '@/components/ui/markdown-inline';
 
 export default function EngagementDetail() {
     const params = useParams();
@@ -23,6 +25,7 @@ export default function EngagementDetail() {
     const [provider, setProvider] = useState<any>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [editingFinding, setEditingFinding] = useState<Finding | null>(null);
 
     useEffect(() => {
@@ -94,9 +97,21 @@ export default function EngagementDetail() {
         }
     };
 
+    const handleSaveEngagementDetails = (updates: Partial<Engagement['metadata']>) => {
+        const updated = updateEngagement(engagementId, {
+            metadata: {
+                ...engagement.metadata,
+                ...updates
+            }
+        });
+        if (updated) {
+            setEngagement(updated);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-background">
-            <div className="container mx-auto px-4 py-8">
+        <div className="flex h-[calc(100vh-65px)] w-full bg-background overflow-hidden relative">
+            <div className={`flex-1 overflow-y-auto px-8 py-8 transition-all duration-300 ${isDialogOpen ? 'mr-[50vw]' : ''}`}>
                 <Link href="/">
                     <Button variant="ghost" className="mb-6">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -116,6 +131,10 @@ export default function EngagementDetail() {
                         </p>
                     </div>
                     <div className="flex gap-3">
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit Details
+                        </Button>
                         <Button variant="outline" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={handleDeleteEngagement}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete Engagement
@@ -193,18 +212,24 @@ export default function EngagementDetail() {
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3">
                                                 <SeverityBadge severity={finding.severity} />
-                                                <h3 className="text-lg font-semibold">{finding.title}</h3>
+                                                <h3 className="text-lg font-semibold">
+                                                    <MarkdownInline content={finding.title} />
+                                                </h3>
                                             </div>
                                             {finding.category && (
-                                                <p className="mt-2 text-sm text-muted-foreground">{finding.category}</p>
+                                                <p className="mt-2 text-sm text-muted-foreground">
+                                                    <MarkdownInline content={finding.category} />
+                                                </p>
                                             )}
                                             {finding.threatCategory && (
-                                                <p className="mt-2 text-sm text-muted-foreground">STRIDE: {finding.threatCategory}</p>
+                                                <p className="mt-2 text-sm text-muted-foreground">STRIDE: <MarkdownInline content={finding.threatCategory} /></p>
                                             )}
                                             {finding.concernCategory && (
-                                                <p className="mt-2 text-sm text-muted-foreground">Concern: {finding.concernCategory}</p>
+                                                <p className="mt-2 text-sm text-muted-foreground">Concern: <MarkdownInline content={finding.concernCategory} /></p>
                                             )}
-                                            <p className="mt-2 text-sm">{finding.description.substring(0, 200)}...</p>
+                                            <p className="mt-2 text-sm">
+                                                <MarkdownInline content={finding.description.substring(0, 200)} />...
+                                            </p>
                                             <div className="mt-3 flex flex-wrap gap-2">
                                                 {finding.cvss && (
                                                     <span className="rounded-md bg-muted px-2 py-1 text-xs">
@@ -250,22 +275,34 @@ export default function EngagementDetail() {
                 </div>
             </div>
 
-            <FindingDialog
-                open={isDialogOpen}
-                onOpenChange={setIsDialogOpen}
-                onSave={editingFinding ? handleUpdateFinding : handleAddFinding}
-                finding={editingFinding}
-                assessmentType={engagement.metadata.assessmentType}
-                engagementId={engagementId}
-                applicationId={engagement.applicationId}
-                clientId={engagement.clientId}
-            />
+            {/* Right Side Panel */}
+            <div className={`absolute top-0 right-0 h-full w-[50vw] z-40 border-l bg-background shadow-2xl transition-transform duration-300 ${isDialogOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                {isDialogOpen && (
+                    <FindingDialog
+                        open={isDialogOpen}
+                        onOpenChange={setIsDialogOpen}
+                        onSave={editingFinding ? handleUpdateFinding : handleAddFinding}
+                        finding={editingFinding}
+                        assessmentType={engagement.metadata.assessmentType}
+                        engagementId={engagementId}
+                        applicationId={engagement.applicationId}
+                        clientId={engagement.clientId}
+                    />
+                )}
+            </div>
 
             <ReportConfigDialog
                 open={isConfigDialogOpen}
                 onOpenChange={setIsConfigDialogOpen}
                 engagement={engagement}
                 onSave={handleSaveConfig}
+            />
+
+            <EditEngagementDialog
+                open={isEditDialogOpen}
+                onOpenChange={setIsEditDialogOpen}
+                engagement={engagement}
+                onSave={handleSaveEngagementDetails}
             />
         </div>
     );
