@@ -115,6 +115,21 @@ export default function LoginPage() {
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {mode === 'signin' ? 'Sign In' : 'Create Account'}
                             </Button>
+
+                            {process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && (
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    className="w-full py-5 border-dashed border-primary text-primary bg-primary/5 hover:bg-primary/10" 
+                                    onClick={() => {
+                                        document.cookie = 'debug_auth=true; path=/';
+                                        // Update the user state using a full page reload or routing
+                                        window.location.href = '/';
+                                    }}
+                                >
+                                    Direct Login (Debug Mode)
+                                </Button>
+                            )}
                         </form>
 
                         <div className="text-center text-sm text-muted-foreground">

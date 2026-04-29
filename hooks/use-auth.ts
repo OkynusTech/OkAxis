@@ -9,12 +9,19 @@ export function useAuth() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && typeof document !== 'undefined' && document.cookie.includes('debug_auth=true')) {
+            setUser({ id: 'debug-user-id', email: 'debug@oknexus.com', role: 'authenticated' } as User);
+            setLoading(false);
+            return;
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (process.env.NEXT_PUBLIC_DEBUG_MODE === 'true' && typeof document !== 'undefined' && document.cookie.includes('debug_auth=true')) return;
             setUser(session?.user ?? null);
         });
 
