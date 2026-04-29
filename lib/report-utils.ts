@@ -169,7 +169,7 @@ export const validateFinding = (finding: Partial<Finding>): string[] => {
 
 // Generate finding ID
 export const generateFindingId = (): string => {
-    return `finding_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `finding_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 };
 
 // Export findings to CSV

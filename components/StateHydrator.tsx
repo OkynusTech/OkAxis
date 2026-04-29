@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { loadStateFromDB, saveStateToDB } from '@/lib/db-sync';
-import { loadState, saveState } from '@/lib/storage';
+import { loadState, saveState, invalidateStateCache } from '@/lib/storage';
 
 declare global {
     interface Window {
@@ -26,6 +26,7 @@ export default function StateHydrator() {
 
             if (dbState) {
                 // DB has data — overwrite localStorage with the authoritative server copy
+                invalidateStateCache(); // Flush stale cache before overwriting
                 saveState(dbState);
             } else {
                 // First time this user hits the DB — push whatever is in localStorage up

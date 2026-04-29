@@ -13,15 +13,12 @@
  * All suggestions are fully editable by the user.
  */
 
-import { Finding, Artifact } from './types';
+import { Finding } from './types';
 import { ScopedRetrievalService, RetrievalResult } from './knowledge-service';
 import { getGroqCompletion } from '@/app/actions/ai-actions';
 import { analyzeFindingIntelligence, IntelligenceResult } from '@/app/actions/finding-intelligence';
 import { analyzeFindingSimilarity, MeaningfulContext } from '@/app/actions/similarity-intelligence';
 
-// Initialize Groq client
-// No longer initializing Groq client here - moved to server action
-const groq = null;
 
 // ============================================================================
 // Types
@@ -182,8 +179,7 @@ export class AIAssistant {
         finding: Partial<Finding>,
         clientId: string
     ): Promise<IntelligenceResult> {
-        // Fetch client details for context
-        const { getClient } = require('./storage');
+        const { getClient } = await import('./storage');
         const client = getClient(clientId);
 
         return await analyzeFindingIntelligence(

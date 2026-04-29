@@ -6,7 +6,7 @@ import { AppState } from '@/lib/types';
 const STORAGE_KEY = 'security_report_builder_data';
 const now = () => new Date().toISOString();
 const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString();
-const id = (prefix: string) => `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
+const id = (prefix: string) => `${prefix}_${Math.random().toString(36).substring(2, 11)}`;
 
 export default function SeedPage() {
   const router = useRouter();

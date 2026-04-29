@@ -2,22 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, FileText, Settings, Download, LogOut, User, Building2, Users, Folder, Trash2, TrendingUp, Shield } from 'lucide-react';
+import { Plus, FileText, Settings, Download, Building2, Users, Folder, Trash2, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { getAllEngagements, getAllServiceProviders, getAllClients, exportData, getAllApplications, getAllEngineers, getAllArtifacts, getAllComponents, deleteEngagement } from '@/lib/storage';
 import { formatDate, calculateFindingStats } from '@/lib/report-utils';
 import { SeverityBadge } from '@/components/ui/severity-badge';
-import { Engagement, ServiceProviderProfile, ClientProfile } from '@/lib/types';
+import { Engagement, ServiceProviderProfile, ClientProfile, Application, Engineer, Artifact, Component } from '@/lib/types';
 
 export default function Dashboard() {
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [serviceProviders, setServiceProviders] = useState<ServiceProviderProfile[]>([]);
   const [clients, setClients] = useState<ClientProfile[]>([]);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [engineers, setEngineers] = useState<any[]>([]);
-  const [artifacts, setArtifacts] = useState<any[]>([]);
-  const [components, setComponents] = useState<any[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [components, setComponents] = useState<Component[]>([]);
 
   const loadData = () => {
     setEngagements(getAllEngagements());

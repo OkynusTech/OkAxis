@@ -121,7 +121,7 @@ export async function processFileUpload(file: File): Promise<EvidenceFile> {
     }
 
     return {
-        id: `evidence-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `evidence-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         name: file.name,
         type: file.type,
         size: file.size,

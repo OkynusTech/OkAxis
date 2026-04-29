@@ -11,6 +11,10 @@ declare global {
 
 const STORAGE_KEY = 'security_report_builder_data';
 
+// In-memory state cache — avoids re-parsing JSON from localStorage on every read.
+// Invalidated only on explicit loadState() or saveState() calls.
+let _stateCache: AppState | null = null;
+
 // Initialize default state
 const getDefaultState = (): AppState => ({
     serviceProviders: [],
@@ -21,19 +25,23 @@ const getDefaultState = (): AppState => ({
     engagements: [],
     templates: [],
     clientUsers: [],
-    retestRequests: [], // New: Retest queue
-    autoRetestResults: [], // New: Auto-retest engine history
+    retestRequests: [],
+    autoRetestResults: [],
     components: [],
     componentFindings: [],
 });
 
-// Load data from localStorage
+// Load data from localStorage (with in-memory cache)
 export const loadState = (): AppState => {
+    // Return cached state if available
+    if (_stateCache) return _stateCache;
+
     try {
         if (typeof window === 'undefined') return getDefaultState();
         const serialized = localStorage.getItem(STORAGE_KEY);
         if (serialized === null) {
-            return getDefaultState();
+            _stateCache = getDefaultState();
+            return _stateCache;
         }
         const parsed = JSON.parse(serialized);
 
@@ -45,16 +53,27 @@ export const loadState = (): AppState => {
             saveState(migrated);
         }
 
-        return migrated;
+        _stateCache = migrated;
+        return _stateCache;
     } catch (err) {
         console.error('Error loading state from localStorage:', err);
-        return getDefaultState();
+        _stateCache = getDefaultState();
+        return _stateCache;
     }
 };
 
-// Save data to localStorage and queue a background sync to Supabase
+/**
+ * Force-reload state from localStorage, bypassing the cache.
+ * Use after external state changes (e.g., StateHydrator overwriting localStorage).
+ */
+export const invalidateStateCache = (): void => {
+    _stateCache = null;
+};
+
+// Save data to localStorage, update cache, and queue a background sync to Supabase
 export const saveState = (state: AppState): void => {
     try {
+        _stateCache = state; // Update in-memory cache
         if (typeof window === 'undefined') return;
         const serialized = JSON.stringify(state);
         localStorage.setItem(STORAGE_KEY, serialized);
@@ -69,7 +88,7 @@ export const createServiceProvider = (provider: Omit<ServiceProviderProfile, 'id
     const now = new Date().toISOString();
     const newProvider: ServiceProviderProfile = {
         ...provider,
-        id: `sp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `sp_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         createdAt: now,
         updatedAt: now,
     };
@@ -125,7 +144,7 @@ export const createClient = (client: Omit<ClientProfile, 'id' | 'createdAt' | 'u
     const now = new Date().toISOString();
     const newClient: ClientProfile = {
         ...client,
-        id: `client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `client_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         createdAt: now,
         updatedAt: now,
     };
@@ -196,7 +215,7 @@ export const getAllClients = (): ClientProfile[] => {
 export const createClientUser = (user: Omit<ClientUser, 'id'>): ClientUser => {
     const newUser: ClientUser = {
         ...user,
-        id: `user_client_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `user_client_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
     };
 
     const state = loadState();
@@ -246,7 +265,7 @@ export const getClientUsers = (clientId: string): ClientUser[] => {
         state.clientUsers = [];
         state.clients.forEach(client => {
             state.clientUsers.push({
-                id: `cu-${Math.random().toString(36).substr(2, 9)}`,
+                id: `cu-${Math.random().toString(36).substring(2, 11)}`,
                 clientId: client.id,
                 email: `admin@${client.companyName.toLowerCase().replace(/\s+/g, '')}.com`,
                 name: `${client.companyName} Admin`,
@@ -303,7 +322,7 @@ const migrateToV2 = (state: any): AppState => {
             // Create default application if not exists for this client
             if (!createdApps.has(clientId)) {
                 const client = state.clients?.find((c: ClientProfile) => c.id === clientId);
-                const appId = `app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const appId = `app_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
                 const newApp: Application = {
                     id: appId,
                     clientId: clientId,
@@ -338,7 +357,7 @@ export const createApplication = (app: Omit<Application, 'id' | 'createdAt' | 'u
     const now = new Date().toISOString();
     const newApp: Application = {
         ...app,
-        id: `app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `app_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         createdAt: now,
         updatedAt: now,
     };
@@ -408,7 +427,7 @@ export const createEngineer = (engineer: Omit<Engineer, 'id' | 'createdAt' | 'up
     const now = new Date().toISOString();
     const newEngineer: Engineer = {
         ...engineer,
-        id: `eng_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `eng_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         exposure: engineer.exposure || {
             vulnerabilityClasses: [],
             applicationTypes: [],
@@ -504,7 +523,7 @@ export const createArtifact = (artifact: Omit<Artifact, 'id' | 'uploadedAt' | 'u
     const now = new Date().toISOString();
     const newArtifact: Artifact = {
         ...artifact,
-        id: `art_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `art_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         uploadedAt: now,
         updatedAt: now,
         visibility: 'internal-only',
@@ -603,38 +622,28 @@ export const getArtifactsByScope = (scope: ArtifactScope, scopeId: string): Arti
 }
 
 // ============================================================================
-// Component Registry Storage
+// Component Registry Storage (unified into AppState)
 // ============================================================================
-
-const COMPONENTS_KEY = 'components';
-const COMPONENT_FINDINGS_KEY = 'component_findings';
 
 export function createComponent(data: Omit<Component, 'id' | 'createdAt' | 'updatedAt'>): Component {
     const component: Component = {
-        id: `comp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `comp-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         ...data,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
-    const components = getAllComponents();
-    components.push(component);
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
-    }
+    const state = loadState();
+    if (!state.components) state.components = [];
+    state.components.push(component);
+    saveState(state);
 
     return component;
 }
 
 export function getAllComponents(): Component[] {
-    try {
-        if (typeof window === 'undefined') return [];
-        const data = localStorage.getItem(COMPONENTS_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (error) {
-        console.error('Error loading components:', error);
-        return [];
-    }
+    const state = loadState();
+    return state.components || [];
 }
 
 export function getComponentById(id: string): Component | undefined {
@@ -652,38 +661,37 @@ export function getComponentByName(name: string, applicationId: string): Compone
 }
 
 export function updateComponent(id: string, updates: Partial<Component>): Component | null {
-    const components = getAllComponents();
-    const index = components.findIndex(c => c.id === id);
+    const state = loadState();
+    if (!state.components) return null;
 
+    const index = state.components.findIndex(c => c.id === id);
     if (index === -1) return null;
 
-    components[index] = {
-        ...components[index],
+    state.components[index] = {
+        ...state.components[index],
         ...updates,
         updatedAt: new Date().toISOString(),
     };
 
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(components));
-    }
-    return components[index];
+    saveState(state);
+    return state.components[index];
 }
 
 export function deleteComponent(id: string): boolean {
-    const components = getAllComponents();
-    const filtered = components.filter(c => c.id !== id);
+    const state = loadState();
+    if (!state.components) return false;
 
-    if (filtered.length === components.length) return false;
+    const initialLength = state.components.length;
+    state.components = state.components.filter(c => c.id !== id);
 
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPONENTS_KEY, JSON.stringify(filtered));
+    if (state.components.length === initialLength) return false;
 
-        // Also delete associated component-finding links
-        const links = getAllComponentFindings();
-        const filteredLinks = links.filter(l => l.componentId !== id);
-        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filteredLinks));
+    // Also delete associated component-finding links
+    if (state.componentFindings) {
+        state.componentFindings = state.componentFindings.filter(l => l.componentId !== id);
     }
 
+    saveState(state);
     return true;
 }
 
@@ -704,45 +712,36 @@ export function linkComponentToFinding(
         linkedAt: new Date().toISOString(),
     };
 
-    const links = getAllComponentFindings();
+    const state = loadState();
+    if (!state.componentFindings) state.componentFindings = [];
 
     // Check if link already exists
-    const existingIndex = links.findIndex(
+    const existingIndex = state.componentFindings.findIndex(
         l => l.componentId === componentId && l.findingId === findingId
     );
 
     if (existingIndex !== -1) {
-        // Update existing link
-        links[existingIndex] = link;
+        state.componentFindings[existingIndex] = link;
     } else {
-        // Add new link
-        links.push(link);
-    }
-
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(links));
+        state.componentFindings.push(link);
     }
 
     // Update component's findingIds array
-    const component = getComponentById(componentId);
-    if (component && !component.findingIds.includes(findingId)) {
-        component.findingIds.push(findingId);
-        component.lastSeen = new Date().toISOString();
-        updateComponent(component.id, component);
+    if (state.components) {
+        const compIndex = state.components.findIndex(c => c.id === componentId);
+        if (compIndex !== -1 && !state.components[compIndex].findingIds.includes(findingId)) {
+            state.components[compIndex].findingIds.push(findingId);
+            state.components[compIndex].lastSeen = new Date().toISOString();
+        }
     }
 
+    saveState(state);
     return link;
 }
 
 export function getAllComponentFindings(): ComponentFinding[] {
-    try {
-        if (typeof window === 'undefined') return [];
-        const data = localStorage.getItem(COMPONENT_FINDINGS_KEY);
-        return data ? JSON.parse(data) : [];
-    } catch (error) {
-        console.error('Error loading component findings:', error);
-        return [];
-    }
+    const state = loadState();
+    return state.componentFindings || [];
 }
 
 export function getComponentFindingsByComponent(componentId: string): ComponentFinding[] {
@@ -754,24 +753,25 @@ export function getComponentFindingsByFinding(findingId: string): ComponentFindi
 }
 
 export function unlinkComponentFromFinding(componentId: string, findingId: string): boolean {
-    const links = getAllComponentFindings();
-    const filtered = links.filter(
+    const state = loadState();
+    if (!state.componentFindings) return false;
+
+    const initialLength = state.componentFindings.length;
+    state.componentFindings = state.componentFindings.filter(
         l => !(l.componentId === componentId && l.findingId === findingId)
     );
 
-    if (filtered.length === links.length) return false;
-
-    if (typeof window !== 'undefined') {
-        localStorage.setItem(COMPONENT_FINDINGS_KEY, JSON.stringify(filtered));
-    }
+    if (state.componentFindings.length === initialLength) return false;
 
     // Update component's findingIds array
-    const component = getComponentById(componentId);
-    if (component) {
-        component.findingIds = component.findingIds.filter(id => id !== findingId);
-        updateComponent(component.id, component);
+    if (state.components) {
+        const compIndex = state.components.findIndex(c => c.id === componentId);
+        if (compIndex !== -1) {
+            state.components[compIndex].findingIds = state.components[compIndex].findingIds.filter(id => id !== findingId);
+        }
     }
 
+    saveState(state);
     return true;
 }
 
@@ -839,7 +839,7 @@ export const createEngagement = (engagement: Omit<Engagement, 'id' | 'createdAt'
     const now = new Date().toISOString();
     const newEngagement: Engagement = {
         ...engagement,
-        id: `eng_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `eng_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         createdAt: now,
         updatedAt: now,
     };
@@ -903,7 +903,7 @@ export const createTemplate = (template: Omit<ReportTemplate, 'id'>): ReportTemp
     // Generate a custom ID
     const newTemplate: ReportTemplate = {
         ...template,
-        id: `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `tpl_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
     };
 
     const state = loadState();
@@ -1032,7 +1032,7 @@ export const createRemediationEvent = (
         ...event,
         findingId,
         engagementId,
-        id: `rem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `rem_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         createdAt: now,
         updatedAt: now,
     };
@@ -1185,7 +1185,7 @@ export const createRetestRequest = (
     const now = new Date().toISOString();
 
     const newRequest: RetestRequest = {
-        id: `retest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        id: `retest_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         findingId,
         engagementId,
         clientId,

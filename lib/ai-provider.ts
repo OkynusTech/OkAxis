@@ -54,16 +54,25 @@ export const PROVIDER_CONFIGS: Record<AIProvider, AIProviderConfig> = {
     },
 };
 
-// ── Client Singletons ────────────────────────────────────────────────────────
+// ── Client Singletons (cached per process lifetime) ─────────────────────────
+
+let _groqClient: Groq | null | undefined;
+let _geminiClient: GoogleGenerativeAI | null | undefined;
 
 const getGroqClient = (): Groq | null => {
-    if (!process.env.GROQ_API_KEY) return null;
-    return new Groq({ apiKey: process.env.GROQ_API_KEY });
+    if (_groqClient !== undefined) return _groqClient;
+    _groqClient = process.env.GROQ_API_KEY
+        ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+        : null;
+    return _groqClient;
 };
 
 const getGeminiClient = (): GoogleGenerativeAI | null => {
-    if (!process.env.GEMINI_API_KEY) return null;
-    return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    if (_geminiClient !== undefined) return _geminiClient;
+    _geminiClient = process.env.GEMINI_API_KEY
+        ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+        : null;
+    return _geminiClient;
 };
 
 // ── Provider Availability ────────────────────────────────────────────────────

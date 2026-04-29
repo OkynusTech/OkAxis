@@ -231,34 +231,3 @@ export class ComponentExtractor {
         return Array.from(seen.values());
     }
 }
-
-/**
- * NER-based Component Extraction (Future Enhancement)
- * 
- * This would use Named Entity Recognition to extract components
- * more intelligently than pattern matching alone.
- */
-export class NERExtractor {
-    /**
-     * Extract entities using NER
-     * TODO: Integrate with NLP service (spaCy, Hugging Face, etc.)
-     */
-    static async extractEntities(text: string): Promise<ExtractedComponent[]> {
-        // Stub implementation - would call NLP API
-        console.warn('NER extraction not yet implemented');
-        return [];
-    }
-
-    /**
-     * Combine pattern and NER results
-     */
-    static async extractWithNER(finding: Finding): Promise<ExtractedComponent[]> {
-        const patternResults = ComponentExtractor.extractFromFinding(finding);
-        const nerResults = await this.extractEntities(
-            `${finding.title} ${finding.description}`
-        );
-
-        // Merge results, preferring NER when available
-        return [...patternResults, ...nerResults];
-    }
-}

@@ -182,7 +182,19 @@ export class VectorStore {
         }
 
         try {
-            localStorage.setItem(key, JSON.stringify(data));
+            const serialized = JSON.stringify(data);
+
+            // Guard: skip persistence if data exceeds 2MB to avoid localStorage quota issues
+            const sizeBytes = new Blob([serialized]).size;
+            if (sizeBytes > 2 * 1024 * 1024) {
+                console.warn(
+                    `[VectorStore] Skipping localStorage persistence: data size (${(sizeBytes / 1024 / 1024).toFixed(1)}MB) exceeds 2MB safety threshold. ` +
+                    `Consider migrating to IndexedDB for production use.`
+                );
+                return;
+            }
+
+            localStorage.setItem(key, serialized);
         } catch (error) {
             console.error('Failed to persist vector store:', error);
             // Likely quota exceeded - clear old data

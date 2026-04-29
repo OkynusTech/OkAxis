@@ -293,7 +293,7 @@ export function AutoRetestDialog({
     const _persistResult = (data: EngineResult) => {
         const det = data.evidence?.details;
         saveAutoRetestResult({
-            id: data.retest_id || `rr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            id: data.retest_id || `rr_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
             findingId: finding.id,
             findingTitle: finding.title,
             engagementId,
