@@ -23,7 +23,9 @@ A comprehensive **Security Engagement Management Platform** for managing penetra
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript |
 | Styling | Tailwind CSS 4 + shadcn/ui |
-| Auth | NextAuth.js (Google OAuth) |
+| **Auth** | **NextAuth.js + Zitadel (Local OIDC)** |
+| Database | Supabase (PostgreSQL) |
+| **Identity Server** | **Zitadel (Docker + PostgreSQL)** |
 | AI (Frontend) | Groq SDK + Google Gemini SDK |
 | AI (Engine) | Groq `llama-3.3-70b-versatile` |
 | Local Embeddings | `@xenova/transformers` (BAAI/bge-small-en-v1.5) |
@@ -37,21 +39,41 @@ A comprehensive **Security Engagement Management Platform** for managing penetra
 
 ### Prerequisites
 - Node.js 18+, Python 3.11+
+- Docker & Docker Compose (for local Zitadel)
 
-### Install
+### 1. Install Dependencies
 ```bash
 npm install
 pip install -r retest_engine/requirements.txt
 python -m playwright install chromium
 ```
 
-### Configure `.env.local`
+### 2. Start Zitadel (Local Identity Server)
+```bash
+docker-compose up -d
+```
+
+This starts:
+- ✅ PostgreSQL database for Zitadel
+- ✅ Zitadel on `http://localhost:8080`
+
+**See [docs/zitadel-setup.md](./docs/zitadel-setup.md) for detailed Zitadel configuration.**
+
+### 3. Configure `.env.local`
+
 ```env
-# Auth
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-NEXTAUTH_SECRET=...
+# NextAuth + Zitadel
+NEXTAUTH_SECRET=your-secret-key-here
 NEXTAUTH_URL=http://localhost:3000
+
+# Zitadel (get from Zitadel Console after running docker-compose)
+ZITADEL_ISSUER=http://localhost:8080
+ZITADEL_CLIENT_ID=<client-id-from-zitadel>
+ZITADEL_CLIENT_SECRET=<client-secret-from-zitadel>
+
+# Supabase (Database)
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 # AI
 GROQ_API_KEY=...
@@ -59,12 +81,12 @@ GEMINI_API_KEY=...          # optional but recommended
 NEXT_PUBLIC_AI_ENABLED=true
 ```
 
-### Run
+### 4. Run Development Server
 ```bash
 npm run dev:all   # starts Next.js + Python engine together
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) and click **"Sign In with Zitadel"**
 
 ---
 
@@ -89,6 +111,7 @@ All documentation lives in the [`/docs`](./docs) folder:
 |---|---|
 | [retest-guide.md](./docs/retest-guide.md) | **Start here** — step-by-step guide to using the Auto-Retest Engine with screenshots |
 | [retest-engine.md](./docs/retest-engine.md) | Retest engine setup, API reference, action types, SSE events, troubleshooting |
+| [zitadel-setup.md](./docs/zitadel-setup.md) | **Local Zitadel setup** — Docker Compose configuration, creating applications, environment setup |
 | [deployment.md](./docs/deployment.md) | Deploying to Vercel (Next.js) and Railway (Python engine Docker) |
 | [ai-layer.md](./docs/ai-layer.md) | AI provider setup (Groq + Gemini), Transformers.js local embeddings, feature reference |
 

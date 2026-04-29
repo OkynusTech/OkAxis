@@ -63,7 +63,7 @@ export function ClientUserManagementDialog({ client, open, onOpenChange }: Clien
             name: inviteName,
             role: inviteRole,
             status: 'invited',
-            invitedBy: user?.user_metadata?.full_name || user?.email || 'Unknown',
+            invitedBy: user?.name || user?.email || 'Unknown',
             invitedAt: new Date().toISOString(),
             avatarUrl: `https://api.dicebear.com/7.x/initials/svg?seed=${inviteName}`,
             passwordHash: demoPasswordHash

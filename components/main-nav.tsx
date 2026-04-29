@@ -26,7 +26,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from '@/lib/supabase-client';
+import { signOut } from 'next-auth/react';
 import { useAuth } from '@/hooks/use-auth';
 
 export function MainNav() {
@@ -38,9 +38,9 @@ export function MainNav() {
         return null;
     }
 
-    const name = user?.user_metadata?.full_name ?? user?.email ?? '';
+    const name = user?.name ?? user?.email ?? '';
     const email = user?.email ?? '';
-    const image = user?.user_metadata?.avatar_url ?? null;
+    const image = user?.image ?? null;
 
     const routes = [
         {
@@ -152,7 +152,7 @@ export function MainNav() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="cursor-pointer text-red-600 focus:text-red-600"
-                                    onClick={() => supabase.auth.signOut().then(() => window.location.href = '/login')}
+                                    onClick={() => signOut({ callbackUrl: '/login' })}
                                 >
                                     <LogOut className="mr-2 h-4 w-4" />
                                     Log out
